@@ -6,7 +6,7 @@ esbuild.js
 tsconfig.json
 **/*.map
 **/*.ts
-icon.build.js
+icon.build.cjs
 media/**
 !media/icon.png
 test/**

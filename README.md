@@ -1,4 +1,4 @@
-# Antigravity For Copilot - Use your Antigravity with VS Code Agent
+# Antigravity for Copilot Chat
 
 A lightweight VS Code Language Model Provider for the Google Antigravity backend.
 

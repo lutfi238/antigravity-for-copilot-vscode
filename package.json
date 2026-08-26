@@ -1,13 +1,13 @@
 {
   "name": "antigravity-for-copilot",
-  "displayName": "Antigravity For Copilot - Use your Antigravity with VS Code Agent",
+  "displayName": "Antigravity for Copilot Chat",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
   "galleryBanner": {
-    "color": "#12143A",
+    "color": "#0B1020",
     "theme": "dark"
   },
   "homepage": "https://github.com/lutfi238/antigravity-for-copilot-vscode#readme",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Rename to "Antigravity for Copilot Chat". The previous long name cleared the marketplace uniqueness check
+  but truncated everywhere it was shown; this is short, accurate — it is a Copilot Chat
+  model provider — and not confusable with the existing "Antigravity for Copilot".
+- New icon.
+
 ## 0.6.0
 
 - Rename the extension to "Antigravity For Copilot - Use your Antigravity with VS Code Agent". The plain "Antigravity for Copilot" is already
