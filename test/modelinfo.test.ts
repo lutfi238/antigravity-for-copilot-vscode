@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { availableEfforts, buildConfigurationSchema, effortFromModelOptions } from '../src/api/modelInfo';
+import { availableEfforts, buildConfigurationSchema, resolveEffort } from '../src/api/modelInfo';
 import { collapseTiers, curateModels, spec } from '../src/api/models';
 
 const flash = collapseTiers(
@@ -64,18 +64,52 @@ describe('buildConfigurationSchema', () => {
 	});
 });
 
-describe('effortFromModelOptions', () => {
-	it('takes the picker selection over the fallback', () => {
-		expect(effortFromModelOptions({ reasoningEffort: 'high' }, 'low')).toBe('high');
+describe('resolveEffort', () => {
+	it('reads modelConfiguration, which is where the picker selection actually lands', () => {
+		// modelOptions carries only VS Code's internal keys; reading just that loses the
+		// user's choice and silently falls back to the setting.
+		expect(
+			resolveEffort({ modelConfiguration: { reasoningEffort: 'high' } }, 'medium'),
+		).toEqual({ effort: 'high', source: 'modelConfiguration' });
 	});
 
-	it('uses the fallback when nothing was selected', () => {
-		expect(effortFromModelOptions(undefined, 'medium')).toBe('medium');
-		expect(effortFromModelOptions({}, 'medium')).toBe('medium');
+	it('ignores VS Code internal keys sitting alongside in modelOptions', () => {
+		const result = resolveEffort(
+			{
+				modelOptions: { _conversationId: 'x', _enableThinking: true, _telemetryTurn: 1 },
+				modelConfiguration: { reasoningEffort: 'low' },
+			},
+			'medium',
+		);
+		expect(result).toEqual({ effort: 'low', source: 'modelConfiguration' });
 	});
 
-	it('ignores a value that is not a known effort', () => {
-		expect(effortFromModelOptions({ reasoningEffort: 'turbo' }, 'low')).toBe('low');
-		expect(effortFromModelOptions({ reasoningEffort: 3 }, 'low')).toBe('low');
+	it('still honours modelOptions when the value arrives there', () => {
+		expect(resolveEffort({ modelOptions: { reasoningEffort: 'high' } }, 'medium').source).toBe(
+			'modelOptions',
+		);
+	});
+
+	it('falls back to configuration as the last channel', () => {
+		expect(resolveEffort({ configuration: { reasoningEffort: 'high' } }, 'low')).toEqual({
+			effort: 'high',
+			source: 'configuration',
+		});
+	});
+
+	it('accepts the alternate shapes the value has been seen in', () => {
+		expect(resolveEffort({ modelConfiguration: { thinkingEffort: 'high' } }, 'low').effort).toBe('high');
+		expect(resolveEffort({ modelConfiguration: { reasoning: { effort: 'high' } } }, 'low').effort).toBe('high');
+		expect(resolveEffort({ modelConfiguration: { thinking: { effort: 'low' } } }, 'high').effort).toBe('low');
+	});
+
+	it('falls back to the setting when no channel carries one', () => {
+		expect(resolveEffort({}, 'medium')).toEqual({ effort: 'medium', source: 'setting' });
+		expect(resolveEffort({ modelOptions: { _conversationId: 'x' } }, 'high').source).toBe('setting');
+	});
+
+	it('ignores values that are not a known effort', () => {
+		expect(resolveEffort({ modelConfiguration: { reasoningEffort: 'turbo' } }, 'low').effort).toBe('low');
+		expect(resolveEffort({ modelConfiguration: { reasoningEffort: 7 } }, 'low').source).toBe('setting');
 	});
 });

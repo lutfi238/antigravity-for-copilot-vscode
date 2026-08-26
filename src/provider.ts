@@ -12,7 +12,7 @@ import {
 } from './api/models';
 import {
 	buildConfigurationSchema,
-	effortFromModelOptions,
+	resolveEffort,
 	Effort,
 	ProviderChatInformation,
 } from './api/modelInfo';
@@ -28,6 +28,15 @@ import { SignatureCache } from './translate/thinking';
 import { GenerateContentResponse } from './translate/types';
 import { buildAgentMetadata, buildEnvelope, createSession, orderRequestFields } from './api/agent-metadata';
 import { QuotaStatusBar } from './ui/statusBar';
+
+/**
+ * VS Code passes the model picker's `configurationSchema` selections on fields that
+ * `@types/vscode` does not declare. `modelOptions` carries only its own internal keys.
+ */
+type RuntimeResponseOptions = vscode.ProvideLanguageModelChatResponseOptions & {
+	readonly modelConfiguration?: Record<string, unknown>;
+	readonly configuration?: Record<string, unknown>;
+};
 
 export const VENDOR = 'antigravity';
 
@@ -141,13 +150,18 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 
 		// The picker selection wins over the setting: `configurationSchema` puts a
 		// Thinking Effort control next to the model, and that is the per-request lever.
+		const runtime = options as RuntimeResponseOptions;
 		const modelOptions = options.modelOptions as Record<string, unknown> | undefined;
 		const settingEffort = config.reasoningEffort();
 		const fallbackEffort: Effort = settingEffort === 'off' ? 'low' : settingEffort;
-		const effort = effortFromModelOptions(modelOptions, fallbackEffort);
-		// Whether the picker actually round-trips a selection is the difference between
-		// "effort is a control" and "effort is a setting that silently wins".
-		const effortFromPicker = effort !== fallbackEffort || modelOptions?.reasoningEffort !== undefined;
+		const { effort, source: effortSource } = resolveEffort(
+			{
+				modelOptions,
+				modelConfiguration: runtime.modelConfiguration,
+				configuration: runtime.configuration,
+			},
+			fallbackEffort,
+		);
 
 		// A collapsed entry stands in for several tier-specific model ids.
 		const wireModel = resolveTier(spec, effort);
@@ -184,8 +198,8 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		log.info(op, 'chat request', {
 			model: wireModel,
 			effort,
-			effortFrom: effortFromPicker ? 'picker' : 'setting',
-			modelOptionKeys: Object.keys(modelOptions ?? {}).join(',') || 'none',
+			effortFrom: effortSource,
+			modelConfigKeys: Object.keys(runtime.modelConfiguration ?? {}).join(',') || 'none',
 			thoughtsRequested: config.showThinking(),
 			contents: request.contents.length,
 			tools: request.tools?.[0]?.functionDeclarations?.length ?? 0,

@@ -97,12 +97,62 @@ export function buildConfigurationSchema(
 	return properties.reasoningEffort ? { properties } : undefined;
 }
 
-/** Reads the effort the user picked in the model picker, if any. */
-export function effortFromModelOptions(
-	modelOptions: Record<string, unknown> | undefined,
-	fallback: Effort,
-): Effort {
-	const chosen = modelOptions?.reasoningEffort;
-	return chosen === 'low' || chosen === 'medium' || chosen === 'high' ? chosen : fallback;
+/**
+ * Every place VS Code might hand back a model-picker selection.
+ *
+ * `modelConfiguration` and `configuration` are undeclared in `@types/vscode` but are
+ * where the `configurationSchema` values actually arrive — `modelOptions` carries only
+ * VS Code's own internal keys (`_conversationId`, `_enableThinking`, …). Reading just
+ * `modelOptions` silently loses the user's choice and falls back to the setting.
+ */
+export interface EffortSources {
+	readonly modelOptions?: Record<string, unknown>;
+	readonly modelConfiguration?: Record<string, unknown>;
+	readonly configuration?: Record<string, unknown>;
 }
 
+export type EffortSource =
+	| 'modelOptions'
+	| 'modelConfiguration'
+	| 'configuration'
+	| 'setting';
+
+function asEffort(value: unknown): Effort | undefined {
+	return value === 'low' || value === 'medium' || value === 'high' ? value : undefined;
+}
+
+/** Pulls an effort out of a bag, tolerating the several shapes it has been seen in. */
+function fromBag(bag: Record<string, unknown> | undefined): Effort | undefined {
+	if (!bag) {
+		return undefined;
+	}
+	const nested = (key: string): unknown => {
+		const inner = bag[key];
+		return inner && typeof inner === 'object' ? (inner as Record<string, unknown>).effort : undefined;
+	};
+	return (
+		asEffort(bag.reasoningEffort) ??
+		asEffort(bag.thinkingEffort) ??
+		asEffort(nested('reasoning')) ??
+		asEffort(nested('thinking')) ??
+		asEffort(bag.thinking)
+	);
+}
+
+export function resolveEffort(
+	sources: EffortSources,
+	fallback: Effort,
+): { effort: Effort; source: EffortSource } {
+	const ordered: Array<[EffortSource, Record<string, unknown> | undefined]> = [
+		['modelConfiguration', sources.modelConfiguration],
+		['modelOptions', sources.modelOptions],
+		['configuration', sources.configuration],
+	];
+	for (const [source, bag] of ordered) {
+		const effort = fromBag(bag);
+		if (effort) {
+			return { effort, source };
+		}
+	}
+	return { effort: fallback, source: 'setting' };
+}

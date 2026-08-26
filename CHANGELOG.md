@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- Fix the Thinking Effort control never taking effect. VS Code delivers the model
+  pickers `configurationSchema` selection on `options.modelConfiguration`, a field
+  `@types/vscode` does not declare; `modelOptions` carries only its own internal keys
+  (`_conversationId`, `_enableThinking`, ...). Reading only `modelOptions` meant every
+  request silently fell back to `antigravity.reasoningEffort`, so picking High or Low
+  still sent `gemini-3.7-flash-medium`.
+- The effort is now read from `modelConfiguration`, `modelOptions` and `configuration`,
+  tolerating the alternate key shapes, and the log names which channel supplied it.
+
 ## 0.8.1
 
 - Log how the thinking effort was resolved: `effort`, `effortFrom=picker|setting`,
