@@ -47,12 +47,24 @@ export interface EmitState {
 	thinkingOpen: boolean;
 	/** Groups streamed reasoning chunks into a single collapsible block. */
 	thinkingId: string;
+	/**
+	 * How many `thought: true` parts the stream actually carried. A model can report
+	 * thought tokens in usage while returning no thought text at all, and without this
+	 * the two cases are indistinguishable from outside.
+	 */
+	thoughtParts: number;
 	finishReason?: string;
 	usage?: GeminiUsage;
 }
 
 export function newEmitState(): EmitState {
-	return { toolCallIndex: 0, textBuffer: '', thinkingOpen: false, thinkingId: `r${Date.now().toString(36)}` };
+	return {
+		toolCallIndex: 0,
+		textBuffer: '',
+		thinkingOpen: false,
+		thinkingId: `r${Date.now().toString(36)}`,
+		thoughtParts: 0,
+	};
 }
 
 /** Unwraps the gateway's `response` envelope, which is absent on some hosts. */
@@ -107,6 +119,7 @@ function emitPart(part: GeminiPart, context: EmitContext, state: EmitState): voi
 	}
 
 	if (part.thought) {
+		state.thoughtParts++;
 		if (!context.showThinking) {
 			return;
 		}

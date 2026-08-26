@@ -246,6 +246,7 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				promptTokens: state.usage?.promptTokenCount,
 				outputTokens: state.usage?.candidatesTokenCount,
 				thoughtTokens: state.usage?.thoughtsTokenCount,
+				thoughtParts: state.thoughtParts,
 			});
 		} catch (error) {
 			if (token.isCancellationRequested) {

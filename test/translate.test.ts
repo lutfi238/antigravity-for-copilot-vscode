@@ -379,3 +379,37 @@ describe('reasoning rendering', () => {
 		expect(h.parts).toHaveLength(0);
 	});
 });
+
+describe('thought-part accounting', () => {
+	function harness(showThinking: boolean) {
+		const parts: unknown[] = [];
+		return {
+			parts,
+			context: {
+				names: new ToolNameMap(),
+				signatures: new SignatureCache(),
+				showThinking,
+				progress: { report: (p: unknown) => parts.push(p) },
+			} as any,
+			state: newEmitState(),
+		};
+	}
+
+	const chunk = (parts: unknown[]) =>
+		({ response: { candidates: [{ content: { role: 'model', parts } }] } }) as GenerateContentResponse;
+
+	it('counts thought parts even when reasoning is hidden', () => {
+		// The count has to reflect what the gateway sent, not what was rendered, or it
+		// cannot answer "did the model return thoughts at all?".
+		const h = harness(false);
+		emitChunk(chunk([{ text: 'a', thought: true }, { text: 'b', thought: true }]), h.context, h.state);
+		expect(h.state.thoughtParts).toBe(2);
+		expect(h.parts).toHaveLength(0);
+	});
+
+	it('stays at zero when the stream carries only answer text', () => {
+		const h = harness(true);
+		emitChunk(chunk([{ text: 'just the answer' }]), h.context, h.state);
+		expect(h.state.thoughtParts).toBe(0);
+	});
+});
