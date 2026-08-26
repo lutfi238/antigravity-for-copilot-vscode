@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- Rename the extension to "Antigravity For Copilot - Use your Antigravity with VS Code Agent". The plain "Antigravity for Copilot" is already
+  taken on the marketplace, so the longer form doubles as the differentiator and says
+  what it does.
+
 ## 0.5.1
 
 - Correct the listing: `effortSelection` defaults to `setting`, not `tiers`, and

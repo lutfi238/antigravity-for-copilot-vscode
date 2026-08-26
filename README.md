@@ -1,4 +1,4 @@
-# Antigravity Model Bridge
+# Antigravity For Copilot - Use your Antigravity with VS Code Agent
 
 A lightweight VS Code Language Model Provider for the Google Antigravity backend.
 
