@@ -20,6 +20,7 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator.
 - **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
 - **Separate quota buckets** in the status bar: Gemini Pro, Gemini Flash, and Claude/GPT refill on different clocks.
+- **Thinking Effort control** in the picker, next to the model, offering only the tiers the backend can serve.
 - **Multiple accounts**, switched manually.
 
 Tool execution, confirmation, workspace trust and permissions remain handled by VS Code.
@@ -51,13 +52,14 @@ Set `antigravity.modelSelection` to `all` to see everything, or list ids in
 Antigravity addresses each effort tier as its own model id, so discovery reports
 "Gemini 3.7 Flash (High)", "(Medium)" and "(Low)" as three separate models.
 
-The default `tiers` passes them through as three picker entries. That is deliberate:
-VS Code gives third-party providers no way to add an effort dropdown next to the model,
-so the picker is the only per-request effort control available.
+By default they are folded into one entry with a **Thinking Effort** control beside the
+model in the picker, the way Copilot's own models work. Only the tiers the backend
+actually routes are offered — Gemini 3.1 Pro shows High and Low but no Medium, because
+no such model id exists.
 
-Set `antigravity.effortSelection` to `setting` to fold them into one entry per model
-(9 entries becomes 6), with the tier taken from `antigravity.reasoningEffort`. Shorter
-list, but switching effort then means changing a setting rather than picking a model.
+`antigravity.reasoningEffort` sets the starting value; whatever is chosen in the picker
+wins for that request. Set `antigravity.effortSelection` to `tiers` to go back to one
+picker row per tier.
 
 ## Requirements
 

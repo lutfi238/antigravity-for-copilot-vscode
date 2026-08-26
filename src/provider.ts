@@ -10,6 +10,12 @@ import {
 	resolveTier,
 	spec,
 } from './api/models';
+import {
+	buildConfigurationSchema,
+	effortFromModelOptions,
+	Effort,
+	ProviderChatInformation,
+} from './api/modelInfo';
 import { readSse } from './api/stream';
 import { AccountStore } from './auth/store';
 import { TokenManager } from './auth/tokens';
@@ -61,7 +67,7 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 	async provideLanguageModelChatInformation(
 		options: vscode.PrepareLanguageModelChatModelOptions,
 		_token: vscode.CancellationToken,
-	): Promise<vscode.LanguageModelChatInformation[]> {
+	): Promise<ProviderChatInformation[]> {
 		const op = newOperationId();
 		const account = await this.store.active();
 
@@ -99,6 +105,9 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			const hidden = new Set(config.hiddenModels());
 			this.specs.clear();
 
+			const settingEffort = config.reasoningEffort();
+			const defaultEffort: Effort = settingEffort === 'off' ? 'low' : settingEffort;
+
 			let curated = curateModels(catalog.models, config.showAllModels());
 			if (config.collapseTiers()) {
 				curated = collapseTiers(curated);
@@ -109,7 +118,7 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				.filter((model) => !hidden.has(model.id))
 				.map((model) => {
 					this.specs.set(model.id, model);
-					return toChatInformation(model);
+					return toChatInformation(model, defaultEffort);
 				});
 		} catch (error) {
 			log.error(op, 'discovery failed', { error });
@@ -130,22 +139,28 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		const op = newOperationId();
 		const spec = this.specs.get(model.id) ?? fallbackSpec(model);
 
+		// The picker selection wins over the setting: `configurationSchema` puts a
+		// Thinking Effort control next to the model, and that is the per-request lever.
+		const modelOptions = options.modelOptions as Record<string, unknown> | undefined;
+		const settingEffort = config.reasoningEffort();
+		const fallbackEffort: Effort = settingEffort === 'off' ? 'low' : settingEffort;
+		const effort = effortFromModelOptions(modelOptions, fallbackEffort);
+
+		// A collapsed entry stands in for several tier-specific model ids.
+		const wireModel = resolveTier(spec, effort);
+
 		const { request, names } = buildRequest({
 			model: spec,
 			messages,
 			tools: options.tools,
 			toolMode: options.toolMode,
-			modelOptions: options.modelOptions as Record<string, unknown> | undefined,
-			reasoningEffort: config.reasoningEffort(),
+			modelOptions,
+			reasoningEffort: settingEffort === 'off' ? 'off' : effort,
 			includeThoughts: config.showThinking(),
 			signatures: this.signatures,
 		});
 
 		const project = await this.projects.resolve(op, config.projectId());
-
-		// A collapsed entry stands in for several tier-specific model ids; resolve the
-		// one matching the configured effort now that the request is being made.
-		const wireModel = resolveTier(spec, config.reasoningEffort());
 
 		// The gateway expects the agent harness envelope: telemetry labels and a
 		// session id inside `request`, wrapped in an outer object whose field order
@@ -245,17 +260,20 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 	}
 }
 
-function toChatInformation(model: ModelSpec): vscode.LanguageModelChatInformation {
+function toChatInformation(model: ModelSpec, defaultEffort: Effort): ProviderChatInformation {
+	const maxInputTokens = model.contextWindow - model.maxOutputTokens;
+	const schema = buildConfigurationSchema(model, maxInputTokens, defaultEffort);
 	return {
 		id: model.id,
 		name: model.name,
 		family: model.family,
 		version: '1.0.0',
-		maxInputTokens: model.contextWindow - model.maxOutputTokens,
+		maxInputTokens,
 		maxOutputTokens: model.maxOutputTokens,
 		tooltip: `${model.name} via your Google Antigravity account`,
 		detail: 'Antigravity',
 		capabilities: { toolCalling: true, imageInput: model.supportsImages },
+		...(schema ? { configurationSchema: schema } : {}),
 	};
 }
 

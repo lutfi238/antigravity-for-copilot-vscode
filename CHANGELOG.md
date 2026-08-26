@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0
+
+- Add a **Thinking Effort** control next to the model in the picker, via the
+  `configurationSchema` field on the model information object. The field is absent from
+  `@types/vscode` but the VS Code runtime honours it, and the selection arrives back as
+  `modelOptions` on the request — so a third-party provider can offer the same
+  per-request effort control Copilot's own models have.
+- Only the tiers the backend actually routes are offered: Gemini 3.1 Pro exposes High
+  and Low but no Medium, because no such model id exists. Claude takes an arbitrary
+  numeric budget, so all three are genuine.
+- `antigravity.effortSelection` now defaults to `setting`: one entry per model with the
+  effort control, rather than a picker row per tier.
+- `antigravity.reasoningEffort` becomes the starting value; a picker selection wins for
+  that request.
+
 ## 0.4.0
 
 - Add `antigravity.effortSelection`. Antigravity exposes each effort tier as a separate

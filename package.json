@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -90,7 +90,7 @@
             "high"
           ],
           "default": "medium",
-          "markdownDescription": "Thinking budget for models that support it. The budget is always capped below the model's output limit, which the gateway requires."
+          "markdownDescription": "Default thinking effort, used when no **Thinking Effort** is selected in the model picker. The picker selection always wins for that request."
         },
         "antigravity.showThinking": {
           "type": "boolean",
@@ -129,12 +129,12 @@
             "tiers",
             "setting"
           ],
-          "default": "tiers",
+          "default": "setting",
           "markdownEnumDescriptions": [
-            "One picker entry per effort tier, e.g. Gemini 3.7 Flash (High) / (Medium) / (Low). Lets you switch effort per request, since VS Code gives third-party providers no other way to.",
-            "One picker entry per model, with the effort taken from `#antigravity.reasoningEffort#`. Shorter list, but changing effort means changing a setting."
+            "One picker entry per effort tier, e.g. Gemini 3.7 Flash (High) / (Medium) / (Low).",
+            "One entry per model, with a **Thinking Effort** control beside it in the picker. Falls back to `#antigravity.reasoningEffort#` when nothing is selected."
           ],
-          "markdownDescription": "How model effort tiers are presented. Antigravity addresses each tier as a separate model id, so by default they appear as separate picker entries."
+          "markdownDescription": "How model effort tiers are presented. Antigravity addresses each tier as a separate model id; `setting` folds them into one entry with an effort control next to the model, the way Copilot's own models work."
         },
         "antigravity.endpoint": {
           "type": "string",

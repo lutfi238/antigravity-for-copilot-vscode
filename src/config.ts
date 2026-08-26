@@ -23,7 +23,7 @@ export const config = {
 	},
 	/** Fold a model's effort tiers into one picker entry, effort chosen by setting. */
 	collapseTiers(): boolean {
-		return get<string>('effortSelection', 'tiers') === 'setting';
+		return get<string>('effortSelection', 'setting') !== 'tiers';
 	},
 	/** `all` keeps every generation and duplicate the gateway reports. */
 	showAllModels(): boolean {
