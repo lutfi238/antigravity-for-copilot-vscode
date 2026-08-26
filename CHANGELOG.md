@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Add `antigravity.effortSelection`. Antigravity exposes each effort tier as a separate
+  model id, so the picker carried one row per tier. Setting this to `setting` folds them
+  into a single entry per model and takes the tier from `antigravity.reasoningEffort`,
+  cutting the list from 9 entries to 6. The default is unchanged, because the picker is
+  the only per-request effort control the VS Code provider API allows.
+
 ## 0.3.1
 
 - Rewrite the README, which is also the marketplace listing.

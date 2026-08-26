@@ -21,6 +21,10 @@ export const config = {
 	hiddenModels(): string[] {
 		return get<string[]>('hiddenModels', []);
 	},
+	/** Fold a model's effort tiers into one picker entry, effort chosen by setting. */
+	collapseTiers(): boolean {
+		return get<string>('effortSelection', 'tiers') === 'setting';
+	},
 	/** `all` keeps every generation and duplicate the gateway reports. */
 	showAllModels(): boolean {
 		return get<string>('modelSelection', 'latest') === 'all';
@@ -47,6 +51,7 @@ export function onModelAffectingChange(handler: () => void): vscode.Disposable {
 		if (
 			event.affectsConfiguration(`${SECTION}.hiddenModels`) ||
 			event.affectsConfiguration(`${SECTION}.modelSelection`) ||
+			event.affectsConfiguration(`${SECTION}.effortSelection`) ||
 			event.affectsConfiguration(`${SECTION}.projectId`)
 		) {
 			handler();

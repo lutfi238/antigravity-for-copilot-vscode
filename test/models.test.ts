@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchCatalog, spec, curateModels, FALLBACK_MODELS } from '../src/api/models';
+import {
+	fetchCatalog,
+	spec,
+	curateModels,
+	collapseTiers,
+	resolveTier,
+	FALLBACK_MODELS,
+} from '../src/api/models';
 
 /** Stands in for GatewayClient, returning whatever the gateway is pretending to send. */
 function clientReturning(payload: unknown) {
@@ -231,5 +238,74 @@ describe('curateModels', () => {
 		expect(all).toContain('Gemini 3.6 Flash (High)');
 		expect(all).toContain('Gemini 2.5 Pro');
 		expect(all.some((n) => /^Tab_|^Chat_|Tiered/.test(n))).toBe(false);
+	});
+});
+
+describe('collapseTiers', () => {
+	const curated = curateModels(OBSERVED.map(([id, name]) => spec(id, name)), false);
+	const collapsed = collapseTiers(curated);
+	const names = collapsed.map((m) => m.name);
+
+	it('folds the three Flash tiers into one entry', () => {
+		expect(names.filter((n) => n.startsWith('Gemini 3.7 Flash'))).toEqual(['Gemini 3.7 Flash']);
+	});
+
+	it('drops the tier suffix from names it actually collapsed', () => {
+		expect(names).toContain('Gemini 3.1 Pro');
+		expect(names).not.toContain('Gemini 3.1 Pro (High)');
+	});
+
+	it('keeps the suffix on a model that has only one tier', () => {
+		// GPT-OSS is offered at medium only, so there is nothing to fold and the name
+		// stays exactly as the gateway reported it.
+		expect(names).toContain('GPT-OSS 120B (Medium)');
+	});
+
+	it('keeps every tier addressable through tierVariants', () => {
+		const flash = collapsed.find((m) => m.name === 'Gemini 3.7 Flash')!;
+		expect(flash.tierVariants).toEqual({
+			high: 'gemini-3.7-flash-high',
+			medium: 'gemini-3.7-flash-medium',
+			low: 'gemini-3.7-flash-low',
+		});
+	});
+
+	it('represents a group with its strongest tier, so an unset effort is no downgrade', () => {
+		expect(collapsed.find((m) => m.name === 'Gemini 3.7 Flash')!.thinkingTier).toBe('high');
+	});
+
+	it('leaves untiered models untouched', () => {
+		expect(names).toContain('Claude Opus 4.6 (Thinking)');
+		expect(names).toContain('GPT-OSS 120B (Medium)');
+		expect(names).toContain('Gemini 3.1 Flash Lite');
+	});
+
+	it('shortens the picker further than curation alone', () => {
+		expect(collapsed.length).toBeLessThan(curated.length);
+	});
+});
+
+describe('resolveTier', () => {
+	const flash = collapseTiers(curateModels(OBSERVED.map(([id, name]) => spec(id, name)), false)).find(
+		(m) => m.name === 'Gemini 3.7 Flash',
+	)!;
+
+	it('maps each effort to its own wire id', () => {
+		expect(resolveTier(flash, 'high')).toBe('gemini-3.7-flash-high');
+		expect(resolveTier(flash, 'medium')).toBe('gemini-3.7-flash-medium');
+		expect(resolveTier(flash, 'low')).toBe('gemini-3.7-flash-low');
+	});
+
+	it('treats "off" as the cheapest tier, since a tiered model always thinks', () => {
+		expect(resolveTier(flash, 'off')).toBe('gemini-3.7-flash-low');
+	});
+
+	it('falls back within the group when the wanted tier is absent', () => {
+		const pro = { ...flash, tierVariants: { high: 'gemini-pro-agent', low: 'gemini-3.1-pro-low' } };
+		expect(resolveTier(pro, 'medium')).toBe('gemini-pro-agent');
+	});
+
+	it('returns the id unchanged for an uncollapsed model', () => {
+		expect(resolveTier(spec('claude-sonnet-4-6', 'Claude Sonnet 4.6'), 'high')).toBe('claude-sonnet-4-6');
 	});
 });

@@ -21,6 +21,11 @@ export interface ModelSpec {
 	thinkingStyle: 'none' | 'model-id-tier' | 'numeric-budget';
 	/** Effort tier parsed out of the model id, for models that encode it there. */
 	thinkingTier?: 'low' | 'medium' | 'high';
+	/**
+	 * Set on a collapsed entry: the sibling model ids for each effort tier, so the
+	 * request can pick one without the picker carrying a row per tier.
+	 */
+	tierVariants?: Partial<Record<'low' | 'medium' | 'high', string>>;
 }
 
 /**
@@ -219,6 +224,75 @@ export function curateModels(models: ModelSpec[], keepAllGenerations: boolean): 
 		// Non-Gemini models (Claude, GPT-OSS) have no generation ladder to prune.
 		return !parsed || parsed.version === newest.get(parsed.line);
 	});
+}
+
+/** Strips a trailing "(High)" / "(Medium)" / "(Low)" from a display name. */
+function baseName(name: string): string {
+	return name.replace(/\s*\((?:high|medium|low|minimal|extra[\s-]?low)\)\s*$/i, '').trim();
+}
+
+/**
+ * Folds a model's effort tiers into a single picker entry.
+ *
+ * Antigravity addresses each effort tier as its own model id, so discovery reports
+ * "Gemini 3.7 Flash (High)" and "(Medium)" and "(Low)" as three models. Passing those
+ * straight through triples the picker. Collapsing keeps one row and defers the tier to
+ * request time — at the cost of the picker no longer being a per-request effort
+ * switch, which is the only such control the VS Code provider API allows.
+ */
+export function collapseTiers(models: ModelSpec[]): ModelSpec[] {
+	const groups = new Map<string, ModelSpec[]>();
+	for (const model of models) {
+		const key = baseName(model.name);
+		const list = groups.get(key);
+		if (list) {
+			list.push(model);
+		} else {
+			groups.set(key, [model]);
+		}
+	}
+
+	const out: ModelSpec[] = [];
+	for (const [base, group] of groups) {
+		const tiered = group.filter((model) => model.thinkingTier);
+		if (tiered.length < 2) {
+			out.push(...group);
+			continue;
+		}
+
+		const tierVariants: NonNullable<ModelSpec['tierVariants']> = {};
+		for (const model of tiered) {
+			// First id wins per tier, matching discovery order.
+			const tier = model.thinkingTier!;
+			tierVariants[tier] = tierVariants[tier] ?? model.id;
+		}
+
+		// Represent the group with its strongest tier so an unset effort is not a downgrade.
+		const preferred =
+			tiered.find((model) => model.thinkingTier === 'high') ??
+			tiered.find((model) => model.thinkingTier === 'medium') ??
+			tiered[0];
+
+		out.push({ ...preferred, name: base, tierVariants });
+		out.push(...group.filter((model) => !model.thinkingTier));
+	}
+	return out;
+}
+
+/** Picks the sibling id matching the requested effort, if the entry is collapsed. */
+export function resolveTier(model: ModelSpec, effort: 'off' | 'low' | 'medium' | 'high'): string {
+	if (!model.tierVariants) {
+		return model.id;
+	}
+	const wanted: 'low' | 'medium' | 'high' = effort === 'off' ? 'low' : effort;
+	const order: Array<'low' | 'medium' | 'high'> = wanted === 'high' ? ['high', 'medium', 'low'] : wanted === 'medium' ? ['medium', 'high', 'low'] : ['low', 'medium', 'high'];
+	for (const tier of order) {
+		const id = model.tierVariants[tier];
+		if (id) {
+			return id;
+		}
+	}
+	return model.id;
 }
 
 function classify(modelId: string, displayName?: string): QuotaGroup | null {

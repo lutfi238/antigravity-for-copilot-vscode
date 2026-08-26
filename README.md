@@ -46,6 +46,19 @@ The default `latest` trims that to the newest generation of each Gemini line, de
 Set `antigravity.modelSelection` to `all` to see everything, or list ids in
 `antigravity.hiddenModels` to remove specific entries.
 
+### Effort tiers
+
+Antigravity addresses each effort tier as its own model id, so discovery reports
+"Gemini 3.7 Flash (High)", "(Medium)" and "(Low)" as three separate models.
+
+The default `tiers` passes them through as three picker entries. That is deliberate:
+VS Code gives third-party providers no way to add an effort dropdown next to the model,
+so the picker is the only per-request effort control available.
+
+Set `antigravity.effortSelection` to `setting` to fold them into one entry per model
+(9 entries becomes 6), with the tier taken from `antigravity.reasoningEffort`. Shorter
+list, but switching effort then means changing a setting rather than picking a model.
+
 ## Requirements
 
 - VS Code 1.108.0 or later
@@ -76,6 +89,7 @@ only counts, sizes, transport decisions and redacted error text.
 Under **Settings → Extensions → Antigravity**:
 
 - `antigravity.modelSelection` — `latest` (default) or `all`
+- `antigravity.effortSelection` — `tiers` (default) or `setting`, see below
 - `antigravity.hiddenModels` — model ids to omit from the picker
 - `antigravity.reasoningEffort` — `off` / `low` / `medium` / `high`, for models that take a budget
 - `antigravity.showThinking` — return the model's reasoning and render it as a blockquote

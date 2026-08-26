@@ -1,7 +1,15 @@
 import * as vscode from 'vscode';
 import { GatewayClient } from './api/client';
 import { toLanguageModelError } from './api/errors';
-import { Catalog, curateModels, fetchCatalog, ModelSpec, spec } from './api/models';
+import {
+	Catalog,
+	collapseTiers,
+	curateModels,
+	fetchCatalog,
+	ModelSpec,
+	resolveTier,
+	spec,
+} from './api/models';
 import { readSse } from './api/stream';
 import { AccountStore } from './auth/store';
 import { TokenManager } from './auth/tokens';
@@ -91,7 +99,10 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			const hidden = new Set(config.hiddenModels());
 			this.specs.clear();
 
-			const curated = curateModels(catalog.models, config.showAllModels());
+			let curated = curateModels(catalog.models, config.showAllModels());
+			if (config.collapseTiers()) {
+				curated = collapseTiers(curated);
+			}
 			log.info(op, 'catalog curated', { from: catalog.models.length, to: curated.length });
 
 			return curated
@@ -132,10 +143,14 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 
 		const project = await this.projects.resolve(op, config.projectId());
 
+		// A collapsed entry stands in for several tier-specific model ids; resolve the
+		// one matching the configured effort now that the request is being made.
+		const wireModel = resolveTier(spec, config.reasoningEffort());
+
 		// The gateway expects the agent harness envelope: telemetry labels and a
 		// session id inside `request`, wrapped in an outer object whose field order
 		// matches the real client. Without it we are a different client to them.
-		const metadata = buildAgentMetadata(this.session, request, spec.id, Date.now());
+		const metadata = buildAgentMetadata(this.session, request, wireModel, Date.now());
 		const inner = orderRequestFields({
 			...(request as unknown as Record<string, unknown>),
 			labels: metadata.labels,
@@ -143,13 +158,13 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		});
 		const body = buildEnvelope({
 			project,
-			model: spec.id,
+			model: wireModel,
 			request: inner,
 			requestId: metadata.requestId,
 		});
 
 		log.info(op, 'chat request', {
-			model: spec.id,
+			model: wireModel,
 			contents: request.contents.length,
 			tools: request.tools?.[0]?.functionDeclarations?.length ?? 0,
 			toolMode: options.toolMode,

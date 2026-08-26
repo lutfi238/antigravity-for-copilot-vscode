@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -122,6 +122,19 @@
             "Every model the gateway reports, including old generations and duplicates."
           ],
           "markdownDescription": "Which discovered models to offer in the picker. Antigravity lists several generations of each line plus internal aliases; `latest` trims that to what is worth using."
+        },
+        "antigravity.effortSelection": {
+          "type": "string",
+          "enum": [
+            "tiers",
+            "setting"
+          ],
+          "default": "tiers",
+          "markdownEnumDescriptions": [
+            "One picker entry per effort tier, e.g. Gemini 3.7 Flash (High) / (Medium) / (Low). Lets you switch effort per request, since VS Code gives third-party providers no other way to.",
+            "One picker entry per model, with the effort taken from `#antigravity.reasoningEffort#`. Shorter list, but changing effort means changing a setting."
+          ],
+          "markdownDescription": "How model effort tiers are presented. Antigravity addresses each tier as a separate model id, so by default they appear as separate picker entries."
         },
         "antigravity.endpoint": {
           "type": "string",
