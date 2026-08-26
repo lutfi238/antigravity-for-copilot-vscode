@@ -109,6 +109,12 @@ block. `LanguageModelThinkingPart` is present in the VS Code runtime but absent 
 `@types/vscode`, so it is feature-detected: builds that lack it fall back to a markdown
 blockquote above the answer. Turn it off with `antigravity.showThinking`.
 
+Not every model returns its reasoning. Gemini Pro and Claude send thought text and get a
+block; Gemini Flash reports thought tokens in usage but sends no thought parts, so
+nothing renders even though it is thinking. The log distinguishes the two —
+`thoughtTokens>0` with `thoughtParts=0` means the gateway withheld the text, which is a
+backend behaviour rather than a fault in this extension.
+
 ## Develop locally
 
 ```bash
