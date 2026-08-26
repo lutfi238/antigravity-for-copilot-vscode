@@ -1,0 +1,13 @@
+.vscode/**
+src/**
+node_modules/**
+out/**
+esbuild.js
+tsconfig.json
+**/*.map
+**/*.ts
+icon.build.js
+media/**
+!media/icon.png
+test/**
+vitest.config.ts

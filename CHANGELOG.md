@@ -1,0 +1,52 @@
+# Changelog
+
+## 0.3.0
+
+- Request and render model reasoning behind `antigravity.showThinking`. Gemini receives
+  `thinkingLevel` (recovered from the model id), Claude keeps its numeric budget.
+  VS Code exposes no thinking part to third-party providers, so reasoning renders as a
+  blockquote rather than a collapsible block.
+- Declare `engines.vscode: ^1.108.0` honestly — `LanguageModelDataPart` (image input)
+  does not exist before 1.108, and npm had been masking this by resolving `^1.104.0`
+  to a much newer types package.
+
+## 0.2.0
+
+- Curate the discovered catalogue. Antigravity lists every routable model, including
+  `Tab_*` autocomplete models, `Chat_NNNNN` internal aliases, `*tiered*` routing
+  aliases, image models, duplicate display names, and every past generation.
+  Default `latest` keeps only the newest generation of each Gemini line; set
+  `antigravity.modelSelection` to `all` to opt out. 27 models becomes 9.
+
+## 0.1.1
+
+- Replace the schema denylist with an allowlist of the 19 fields the gateway's `Schema`
+  proto defines. The gateway parses with protobuf JSON and hard-fails on any unknown
+  key, so one VS Code extension keyword (`enumDescriptions`) anywhere in a 40-tool
+  payload failed the whole request.
+- Stringify non-string enum members, map `type: [T, "null"]` to `nullable`, and infer
+  `STRING` for a bare `enum`.
+
+## 0.1.0
+
+- Correct the wire protocol against the shipping client: the daily host is
+  `daily-cloudcode-pa.googleapis.com` (not the `.sandbox.` variant), the User-Agent is
+  the Antigravity CLI identity, and content requests send no `X-Goog-Api-Client`,
+  `Client-Metadata` or `Accept` header.
+- Send the agent request envelope: `requestType`, a five-segment `requestId`, telemetry
+  `labels`, and an FNV-1a session id, in the field order the client emits.
+- Use the real model ids, including the irregular `gemini-pro-agent` and
+  `gemini-3-flash-agent` top tiers.
+
+## 0.0.2
+
+- Parse `fetchAvailableModels` as a map keyed by model id rather than an array. The
+  mismatch threw, was swallowed, and silently substituted a stale hardcoded roster with
+  no quota — which looked identical to an account with no access.
+- Split quota into three buckets (Gemini Pro, Gemini Flash, Claude/GPT); Flash refills
+  far faster than Pro.
+- Stop sending numeric thinking budgets to Gemini, which takes a level string.
+
+## 0.0.1
+
+- Initial Language Model Provider registration, OAuth sign-in, and streaming.

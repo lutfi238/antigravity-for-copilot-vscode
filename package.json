@@ -1,0 +1,165 @@
+{
+  "name": "antigravity-for-copilot",
+  "displayName": "Antigravity Model Bridge",
+  "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
+  "version": "0.3.0",
+  "publisher": "lutfi",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#12143A",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/lutfi238/antigravity-for-copilot-vscode#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lutfi238/antigravity-for-copilot-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lutfi238/antigravity-for-copilot-vscode/issues"
+  },
+  "keywords": [
+    "antigravity",
+    "gemini",
+    "claude",
+    "copilot",
+    "language model provider",
+    "chat",
+    "ai",
+    "gpt-oss"
+  ],
+  "engines": {
+    "vscode": "^1.108.0"
+  },
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguageModelChatProvider:antigravity",
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "languageModelChatProviders": [
+      {
+        "vendor": "antigravity",
+        "displayName": "Antigravity",
+        "managementCommand": "antigravity.manage"
+      }
+    ],
+    "commands": [
+      {
+        "command": "antigravity.manage",
+        "title": "Manage",
+        "category": "Antigravity"
+      },
+      {
+        "command": "antigravity.signIn",
+        "title": "Sign in with Google",
+        "category": "Antigravity"
+      },
+      {
+        "command": "antigravity.showAuthStatus",
+        "title": "Show Auth Status",
+        "category": "Antigravity"
+      },
+      {
+        "command": "antigravity.refresh",
+        "title": "Refresh Models and Quota",
+        "category": "Antigravity"
+      },
+      {
+        "command": "antigravity.openLogs",
+        "title": "Open Logs",
+        "category": "Antigravity"
+      }
+    ],
+    "configuration": {
+      "title": "Antigravity",
+      "properties": {
+        "antigravity.reasoningEffort": {
+          "type": "string",
+          "enum": [
+            "off",
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "medium",
+          "markdownDescription": "Thinking budget for models that support it. The budget is always capped below the model's output limit, which the gateway requires."
+        },
+        "antigravity.showThinking": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Ask the model to return its reasoning and render it as a blockquote above the answer.\n\nVS Code does not expose a thinking part to third-party model providers (as of 1.134), so this cannot produce the collapsible **Thinking...** block that Copilot own models show - reasoning appears inline instead."
+        },
+        "antigravity.projectId": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Google Cloud project id to bill requests against. Leave empty to discover it automatically. Set this if you see 403 errors mentioning a project."
+        },
+        "antigravity.hiddenModels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Model ids to omit from the model picker."
+        },
+        "antigravity.modelSelection": {
+          "type": "string",
+          "enum": [
+            "latest",
+            "all"
+          ],
+          "default": "latest",
+          "markdownEnumDescriptions": [
+            "Only the newest generation of each Gemini line, de-duplicated, with internal Tab/Chat/image/tiered models removed.",
+            "Every model the gateway reports, including old generations and duplicates."
+          ],
+          "markdownDescription": "Which discovered models to offer in the picker. Antigravity lists several generations of each line plus internal aliases; `latest` trims that to what is worth using."
+        },
+        "antigravity.endpoint": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "daily",
+            "prod"
+          ],
+          "default": "auto",
+          "description": "Pin generation traffic to a single gateway host instead of walking the fallback chain."
+        },
+        "antigravity.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show remaining Antigravity quota in the status bar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run test && npm run compile",
+    "package:vsix": "vsce package --no-dependencies --allow-missing-repository",
+    "vscode:prepublish": "node esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/vscode": "1.108.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "undici": "^7.29.0"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+out/
+*.vsix
+.DS_Store
+tmp/
+
+# Provider credentials: template is committed, real values are not.
+src/api/credentials.ts
