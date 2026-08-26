@@ -210,16 +210,21 @@ export function curateModels(models: ModelSpec[], keepAllGenerations: boolean): 
 		return deduped;
 	}
 
+	// Antigravity's own model list offers Flash, Pro, Claude and GPT-OSS. Flash Lite is
+	// a separate line the backend can route to but that Antigravity never presents as a
+	// choice, so it does not belong in the picker either.
+	const offered = deduped.filter((model) => parseGeminiLine(model.id, model.name)?.line !== 'flash-lite');
+
 	// Keep only the newest generation of each Gemini line; all its tiers survive.
 	const newest = new Map<string, number>();
-	for (const model of deduped) {
+	for (const model of offered) {
 		const parsed = parseGeminiLine(model.id, model.name);
 		if (parsed) {
 			newest.set(parsed.line, Math.max(newest.get(parsed.line) ?? 0, parsed.version));
 		}
 	}
 
-	return deduped.filter((model) => {
+	return offered.filter((model) => {
 		const parsed = parseGeminiLine(model.id, model.name);
 		// Non-Gemini models (Claude, GPT-OSS) have no generation ladder to prune.
 		return !parsed || parsed.version === newest.get(parsed.line);

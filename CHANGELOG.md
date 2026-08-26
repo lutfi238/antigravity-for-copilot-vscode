@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.0
+
+- Match the picker to Antigravity own model list. Flash Lite is a line the backend can
+  route to but that Antigravity never offers as a choice, so it no longer appears;
+  `modelSelection: all` still includes it.
+
+
 ## 0.11.0
 
 - Rewrite tool-schema sanitization against the contract the shipping client uses. Two

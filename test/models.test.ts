@@ -214,8 +214,21 @@ describe('curateModels', () => {
 		expect(names).not.toContain('Gemini 2.5 Pro');
 	});
 
-	it('collapses the four identical Flash Lite entries into one', () => {
-		expect(names.filter((n) => n === 'Gemini 3.1 Flash Lite')).toHaveLength(1);
+	it('drops Flash Lite, which Antigravity never offers as a choice', () => {
+		expect(names.some((n) => /Flash Lite/i.test(n))).toBe(false);
+	});
+
+	it('offers exactly what the Antigravity model list does', () => {
+		expect(names.sort()).toEqual([
+			'Claude Opus 4.6 (Thinking)',
+			'Claude Sonnet 4.6 (Thinking)',
+			'GPT-OSS 120B (Medium)',
+			'Gemini 3.1 Pro (High)',
+			'Gemini 3.1 Pro (Low)',
+			'Gemini 3.7 Flash (High)',
+			'Gemini 3.7 Flash (Low)',
+			'Gemini 3.7 Flash (Medium)',
+		]);
 	});
 
 	it('deduplicates the two ids that share the Pro (High) name', () => {
@@ -231,6 +244,10 @@ describe('curateModels', () => {
 	it('cuts the picker to a usable size', () => {
 		expect(raw.length).toBe(27);
 		expect(curated.length).toBeLessThanOrEqual(10);
+	});
+
+	it('keeps Flash Lite under "all", for anyone who wants it', () => {
+		expect(curateModels(raw, true).some((m) => /Flash Lite/i.test(m.name))).toBe(true);
 	});
 
 	it('keeps old generations under "all" but still drops the internals', () => {
@@ -277,7 +294,6 @@ describe('collapseTiers', () => {
 	it('leaves untiered models untouched', () => {
 		expect(names).toContain('Claude Opus 4.6 (Thinking)');
 		expect(names).toContain('GPT-OSS 120B (Medium)');
-		expect(names).toContain('Gemini 3.1 Flash Lite');
 	});
 
 	it('shortens the picker further than curation alone', () => {
