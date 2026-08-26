@@ -1,4 +1,4 @@
-# Antigravity for Copilot Chat
+# Antigravity Model Bridge
 
 A lightweight VS Code Language Model Provider for the Google Antigravity backend.
 

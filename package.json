@@ -1,6 +1,6 @@
 {
   "name": "antigravity-for-copilot",
-  "displayName": "Antigravity for Copilot Chat",
+  "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
   "version": "0.7.0",
   "publisher": "lutfi",

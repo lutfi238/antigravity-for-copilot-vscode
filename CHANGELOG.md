@@ -2,10 +2,10 @@
 
 ## 0.7.0
 
-- Rename to "Antigravity for Copilot Chat". The previous long name cleared the marketplace uniqueness check
-  but truncated everywhere it was shown; this is short, accurate — it is a Copilot Chat
-  model provider — and not confusable with the existing "Antigravity for Copilot".
 - New icon.
+- Keep the name "Antigravity Model Bridge". The marketplace rejects any display name containing
+  "Antigravity for Copilot", which an extension already uses, so the shorter and longer
+  variants of that phrasing are both unavailable.
 
 ## 0.6.0
 
