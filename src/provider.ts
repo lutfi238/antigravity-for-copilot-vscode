@@ -145,6 +145,9 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		const settingEffort = config.reasoningEffort();
 		const fallbackEffort: Effort = settingEffort === 'off' ? 'low' : settingEffort;
 		const effort = effortFromModelOptions(modelOptions, fallbackEffort);
+		// Whether the picker actually round-trips a selection is the difference between
+		// "effort is a control" and "effort is a setting that silently wins".
+		const effortFromPicker = effort !== fallbackEffort || modelOptions?.reasoningEffort !== undefined;
 
 		// A collapsed entry stands in for several tier-specific model ids.
 		const wireModel = resolveTier(spec, effort);
@@ -180,6 +183,10 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 
 		log.info(op, 'chat request', {
 			model: wireModel,
+			effort,
+			effortFrom: effortFromPicker ? 'picker' : 'setting',
+			modelOptionKeys: Object.keys(modelOptions ?? {}).join(',') || 'none',
+			thoughtsRequested: config.showThinking(),
 			contents: request.contents.length,
 			tools: request.tools?.[0]?.functionDeclarations?.length ?? 0,
 			toolMode: options.toolMode,

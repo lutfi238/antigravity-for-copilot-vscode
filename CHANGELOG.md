@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+- Log how the thinking effort was resolved: `effort`, `effortFrom=picker|setting`,
+  `modelOptionKeys` and `thoughtsRequested`. Without these there is no way to tell a
+  picker selection that never arrives from one that arrives and is honoured.
+
 ## 0.8.0
 
 - Show reasoning in Copilot Chat's own collapsible **Thinking…** block.
