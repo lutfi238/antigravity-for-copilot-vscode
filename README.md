@@ -1,118 +1,129 @@
-# Antigravity for Copilot
+# Antigravity Model Bridge
 
-A VS Code **Language Model Provider** that puts Google Antigravity's models into the native
-Copilot Chat model picker. Sign in with Google once, and Gemini 3 Pro, Gemini 3 Flash,
-Claude Sonnet 4.6, Claude Opus 4.6 and GPT-OSS 120B become selectable models — running on your
-Antigravity quota rather than Copilot premium requests.
+A lightweight VS Code Language Model Provider for the Google Antigravity backend.
 
-It ships no chat UI of its own. Agent mode, tool calling, confirmations, workspace trust and MCP
-all stay VS Code's; this extension only handles auth, model discovery, transport and protocol
-translation.
+[![Install](https://img.shields.io/badge/VS_Code-Install-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=lutfi.antigravity-for-copilot)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
----
+Pick **Gemini 3.7 Flash**, **Gemini 3.1 Pro**, **Claude Sonnet 4.6**, **Claude Opus 4.6** or
+**GPT-OSS 120B** from the standard model picker and keep using native chat and Agent mode.
+Requests run on your Antigravity account rather than Copilot premium requests.
 
-## ⚠️ Read this first
+> **Unofficial.** Not affiliated with, endorsed by, or supported by Google. This talks to
+> undocumented `v1internal` endpoints, so it can break when Antigravity updates. Use a
+> Google account you are willing to risk.
 
-This extension talks to Google's **undocumented `v1internal` Antigravity gateway**. The project this
-was built from ([`NoeFabris/opencode-antigravity-auth`](https://github.com/NoeFabris/opencode-antigravity-auth))
-states plainly that this access path **violates Google's Terms of Service**, and reports users whose
-accounts were **banned or shadow-banned**.
+## Highlights
 
-By using this you accept that:
+- **Native integration** — the models appear in the standard model picker, in Chat and Agent mode.
+- **Automatic model discovery** with a curated default, so the picker shows the newest generation of each line instead of every internal alias.
+- **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator.
+- **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
+- **Separate quota buckets** in the status bar: Gemini Pro, Gemini Flash, and Claude/GPT refill on different clocks.
+- **Multiple accounts**, switched manually.
 
-- It is an unofficial tool, not endorsed by or affiliated with Google.
-- The Google account you sign in with may be suspended or permanently banned.
-- The endpoints are version-pinned and undocumented; they will break without notice.
+Tool execution, confirmation, workspace trust and permissions remain handled by VS Code.
 
-Personal and internal development use only. Not for production, and not for circumventing limits.
+## Get started
 
----
+1. Install the extension.
+2. Run **`Antigravity: Sign in with Google`** from the Command Palette. A browser opens and the
+   callback returns to `http://localhost:51121/oauth-callback`.
+   - The port is **not** configurable — it is the redirect URI registered with the OAuth client,
+     and Google rejects any other. If it is busy, close whatever holds it and retry.
+3. Open Chat and pick an Antigravity model from the model picker.
 
-## Setup
+Credentials live in VS Code SecretStorage and refresh automatically, including refresh-token
+rotation. Signing out removes only this extension's copy.
 
-```bash
-npm install
-npm run check      # typecheck + tests + bundle
-```
+## Model selection
 
-Press <kbd>F5</kbd> for an Extension Development Host, then:
+Discovery returns every model the backend can route to, including inline-autocomplete models
+(`Tab_*`), internal numeric aliases (`Chat_20706`), server-side routing aliases (`*tiered*`),
+image models, duplicate display names, and every past generation — 27 entries in practice.
 
-1. **Antigravity: Sign in with Google** from the Command Palette — a browser opens, and the callback
-   lands on `http://localhost:51121/oauth-callback`.
-2. Open Copilot Chat and pick an Antigravity model from the model picker.
+The default `latest` trims that to the newest generation of each Gemini line, de-duplicated.
+Set `antigravity.modelSelection` to `all` to see everything, or list ids in
+`antigravity.hiddenModels` to remove specific entries.
 
-Port 51121 is **not configurable**: it is the redirect URI registered with the OAuth client, and
-Google rejects any other. If it is in use (Antigravity itself, or another sign-in in flight), free it.
+## Requirements
 
-## Commands
+- VS Code 1.108.0 or later
+- A Google account with Antigravity access (the free tier is enough)
 
-| Command | Purpose |
-|---|---|
-| `Antigravity: Manage` | Accounts, quota, logs, settings — also the model picker's *Manage* target |
-| `Antigravity: Sign in with Google` | Add an account |
-| `Antigravity: Show Auth Status` | List stored accounts and which is active |
-| `Antigravity: Refresh Models and Quota` | Force rediscovery |
-| `Antigravity: Open Logs` | Show the output channel |
+Runs in the local UI extension host so it can reach the loopback OAuth port. With Remote-SSH,
+keep the extension installed locally rather than installing a second copy on the remote host.
 
-## Settings
+## Common commands
 
-| Setting | Default | Notes |
-|---|---|---|
-| `antigravity.reasoningEffort` | `medium` | Thinking budget; always capped below the model's output limit |
-| `antigravity.showThinking` | `false` | Surface reasoning as chat text (VS Code has no thinking part in this API version) |
-| `antigravity.projectId` | `""` | Override project discovery — set this if you hit 403s mentioning a project |
-| `antigravity.hiddenModels` | `[]` | Model ids to omit from the picker |
-| `antigravity.endpoint` | `auto` | Pin to one gateway host instead of walking the fallback chain |
-| `antigravity.showStatusBar` | `true` | Quota indicator |
+- `Antigravity: Manage` — accounts, quota, logs and settings in one place
+- `Antigravity: Sign in with Google`
+- `Antigravity: Show Auth Status`
+- `Antigravity: Refresh Models and Quota`
+- `Antigravity: Open Logs`
+
+## Diagnostics and privacy
+
+Structured logging follows VS Code's log level, adjustable through **Developer: Set Log Level…**.
+Every request, auth flow and discovery call carries an `operationId` so retries and endpoint
+fallbacks can be traced.
+
+Logs exclude prompts, reasoning, tool arguments and results, credentials and tokens — keeping
+only counts, sizes, transport decisions and redacted error text.
+
+## Configuration
+
+Under **Settings → Extensions → Antigravity**:
+
+- `antigravity.modelSelection` — `latest` (default) or `all`
+- `antigravity.hiddenModels` — model ids to omit from the picker
+- `antigravity.reasoningEffort` — `off` / `low` / `medium` / `high`, for models that take a budget
+- `antigravity.showThinking` — return the model's reasoning and render it as a blockquote
+- `antigravity.projectId` — override project discovery, if you see 403s naming a project
+- `antigravity.endpoint` — pin generation traffic to one gateway host
+- `antigravity.showStatusBar` — show remaining quota
 
 Proxies come from `http.proxy` or `HTTPS_PROXY`/`HTTP_PROXY`, with `NO_PROXY` respected.
 
-## How it works
+### A note on reasoning
 
-```
-VS Code chat protocol            Antigravity gateway
-─────────────────────            ───────────────────
-LanguageModelChatRequestMessage  →  contents[] (role: user | model)
-LanguageModelChatTool            →  functionDeclarations (sanitized schema + name)
-LanguageModelToolResultPart      →  functionResponse (matched by name, not id)
-candidates[].parts               →  LanguageModelTextPart / LanguageModelToolCallPart
-```
+VS Code exposes no *thinking part* to third-party model providers, so this extension cannot
+produce the collapsible **Thinking…** block that Copilot's own models show. With
+`antigravity.showThinking` enabled, reasoning is rendered as a markdown blockquote above the
+answer instead.
 
-The gateway speaks a **Gemini dialect for every model family** — Claude included. Anthropic-style
-`messages` arrays are rejected outright. Most of the work lives in `src/translate/`:
-
-- **`schema.ts`** — the gateway's protobuf validator rejects `$ref`, `$defs`, `const`, `default`,
-  `additionalProperties` and friends, and enforces `^[A-Za-z_][A-Za-z0-9_.:-]{0,63}$` on tool names.
-  Real MCP servers violate both constantly, so schemas are rewritten (`const` → single-value `enum`,
-  types uppercased to proto enum names) and names are sanitized through a bidirectional map.
-- **`toGemini.ts`** — Gemini pairs a `functionResponse` to its call **by name, not by id**, so the
-  message walk records `callId → toolName` on the way past the call.
-- **`thinking.ts`** — Gemini 3 returns a `thoughtSignature` that must be echoed back on later turns.
-  VS Code's message history has no field to carry it, so it is cached against the tool-call id.
-  Without this, multi-turn tool-using conversations fail on turn two.
-- Also enforced: `maxOutputTokens` **strictly greater than** `thinkingBudget`, and `systemInstruction`
-  as an object with `parts` (a bare string is a 400).
-
-## Deliberately not implemented
-
-The reference project rotates User-Agent and `X-Goog-Api-Client` values per request, and rotates
-across multiple accounts with a soft-quota threshold to avoid exhausting any one of them. Both exist
-to defeat fingerprinting and stretch quota, not to make the client work. This extension sends one
-stable client identity, and multi-account support is **manual switching only**.
-
-Google Search grounding is also out: `googleSearch` and `urlContext` cannot coexist with
-`functionDeclarations`, and agent mode always sends tools.
-
-## Tests
+## Develop locally
 
 ```bash
-npm test
+npm install
+cp src/api/credentials.example.ts src/api/credentials.ts   # then fill in the values
+npm run check          # typecheck + tests + bundle
+npm run package:vsix
 ```
 
-44 tests cover the pure translation layer — schema sanitization, tool-name round trips, SSE frame
-reassembly across chunk boundaries, role mapping, tool-call pairing and thinking budgets. That is
-where regressions actually live; the network layers are verified by hand against the live gateway.
+Press <kbd>F5</kbd> for an Extension Development Host.
+
+The OAuth client credentials are deliberately **not** in this repository — see
+[`src/api/credentials.example.ts`](src/api/credentials.example.ts) for what to put there and
+where it comes from. The build refuses to run without it rather than producing an extension
+that cannot authenticate.
+
+### How it works
+
+The gateway speaks a Gemini dialect for **every** model family, Claude included; Anthropic-style
+`messages` arrays are rejected outright. Most of the work lives in `src/translate/`:
+
+- **`schema.ts`** — the backend validates tool schemas with protobuf JSON, which hard-fails on any
+  unrecognised key. Since VS Code and MCP servers emit their own annotations
+  (`enumDescriptions`, `markdownDescription`, …), schemas pass through an **allowlist** of the
+  fields the `Schema` proto defines rather than a denylist of known-bad ones.
+- **`toGemini.ts`** — a `functionResponse` is paired to its call **by name, not by id**, so the
+  message walk records `callId → toolName` on the way past the call.
+- **`thinking.ts`** — Gemini selects effort from the tier baked into the model id; only Claude
+  takes a numeric budget, capped strictly below `maxOutputTokens`.
+- **`api/agent-metadata.ts`** — requests carry the agent envelope: `requestType`, a five-segment
+  `requestId`, telemetry labels and an FNV-1a session id, in the field order the real client uses.
 
 ## License
 
-MIT. Not affiliated with Google. Antigravity, Gemini and Google Cloud are trademarks of Google LLC.
+MIT. Antigravity, Gemini and Google Cloud are trademarks of Google LLC.
