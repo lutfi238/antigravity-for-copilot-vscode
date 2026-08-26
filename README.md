@@ -91,9 +91,9 @@ only counts, sizes, transport decisions and redacted error text.
 Under **Settings → Extensions → Antigravity**:
 
 - `antigravity.modelSelection` — `latest` (default) or `all`
-- `antigravity.effortSelection` — `tiers` (default) or `setting`, see below
+- `antigravity.effortSelection` — `setting` (default) or `tiers`, see above
 - `antigravity.hiddenModels` — model ids to omit from the picker
-- `antigravity.reasoningEffort` — `off` / `low` / `medium` / `high`, for models that take a budget
+- `antigravity.reasoningEffort` — starting value for the picker's **Thinking Effort** control
 - `antigravity.showThinking` — return the model's reasoning and render it as a blockquote
 - `antigravity.projectId` — override project discovery, if you see 403s naming a project
 - `antigravity.endpoint` — pin generation traffic to one gateway host

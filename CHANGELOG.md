@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+- Correct the listing: `effortSelection` defaults to `setting`, not `tiers`, and
+  `reasoningEffort` is the starting value for the picker control rather than the only
+  way to set effort.
+
 ## 0.5.0
 
 - Add a **Thinking Effort** control next to the model in the picker, via the
