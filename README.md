@@ -18,6 +18,7 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Native integration** — the models appear in the standard model picker, in Chat and Agent mode.
 - **Automatic model discovery** with a curated default, so the picker shows the newest generation of each line instead of every internal alias.
 - **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator.
+- **Native reasoning display** — the model's thinking appears in Copilot Chat's own collapsible block.
 - **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
 - **Separate quota buckets** in the status bar: Gemini Pro, Gemini Flash, and Claude/GPT refill on different clocks.
 - **Thinking Effort control** in the picker, next to the model, offering only the tiers the backend can serve.
@@ -94,19 +95,19 @@ Under **Settings → Extensions → Antigravity**:
 - `antigravity.effortSelection` — `setting` (default) or `tiers`, see above
 - `antigravity.hiddenModels` — model ids to omit from the picker
 - `antigravity.reasoningEffort` — starting value for the picker's **Thinking Effort** control
-- `antigravity.showThinking` — return the model's reasoning and render it as a blockquote
+- `antigravity.showThinking` — show the model's reasoning (on by default)
 - `antigravity.projectId` — override project discovery, if you see 403s naming a project
 - `antigravity.endpoint` — pin generation traffic to one gateway host
 - `antigravity.showStatusBar` — show remaining quota
 
 Proxies come from `http.proxy` or `HTTPS_PROXY`/`HTTP_PROXY`, with `NO_PROXY` respected.
 
-### A note on reasoning
+### Reasoning
 
-VS Code exposes no *thinking part* to third-party model providers, so this extension cannot
-produce the collapsible **Thinking…** block that Copilot's own models show. With
-`antigravity.showThinking` enabled, reasoning is rendered as a markdown blockquote above the
-answer instead.
+Reasoning is shown by default, rendered as Copilot Chat's own collapsible **Thinking…**
+block. `LanguageModelThinkingPart` is present in the VS Code runtime but absent from
+`@types/vscode`, so it is feature-detected: builds that lack it fall back to a markdown
+blockquote above the answer. Turn it off with `antigravity.showThinking`.
 
 ## Develop locally
 

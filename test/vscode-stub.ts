@@ -79,3 +79,12 @@ export const window = {
 export const workspace = {
 	getConfiguration: () => ({ get: () => undefined }),
 };
+
+/** Present at runtime in VS Code but absent from @types/vscode. */
+export class LanguageModelThinkingPart {
+	constructor(
+		public value: string | string[],
+		public id?: string,
+		public metadata?: { readonly [key: string]: unknown },
+	) {}
+}

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+- Show reasoning in Copilot Chat's own collapsible **Thinking…** block.
+  `LanguageModelThinkingPart` exists in the VS Code runtime but is not declared in
+  `@types/vscode`; it is now feature-detected, with the previous markdown blockquote
+  kept as the fallback for builds that lack it. Streamed reasoning chunks share one id
+  so they group into a single block.
+- `antigravity.showThinking` now defaults to on, since the native block is collapsed
+  and does not crowd the answer.
+
 ## 0.7.0
 
 - New icon.

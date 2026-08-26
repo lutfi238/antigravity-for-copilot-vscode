@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -94,8 +94,8 @@
         },
         "antigravity.showThinking": {
           "type": "boolean",
-          "default": false,
-          "markdownDescription": "Ask the model to return its reasoning and render it as a blockquote above the answer.\n\nVS Code does not expose a thinking part to third-party model providers (as of 1.134), so this cannot produce the collapsible **Thinking...** block that Copilot own models show - reasoning appears inline instead."
+          "default": true,
+          "markdownDescription": "Show the model's reasoning. Rendered as Copilot Chat's own collapsible **Thinking…** block where VS Code supports it, and as a blockquote above the answer on builds that do not."
         },
         "antigravity.projectId": {
           "type": "string",

@@ -294,48 +294,6 @@ describe('emitChunk', () => {
 		expect(h.parts).toHaveLength(0);
 	});
 
-	it('renders reasoning as a blockquote, since VS Code has no thinking part', () => {
-		const h = harness(true);
-		emitChunk(
-			{
-				response: {
-					candidates: [
-						{ content: { role: 'model', parts: [{ text: 'line one\nline two', thought: true }] } },
-					],
-				},
-			} as GenerateContentResponse,
-			h.context,
-			h.state,
-		);
-		const text = (h.parts as vscode.LanguageModelTextPart[]).map((p) => p.value).join('');
-		expect(text).toContain('**Reasoning**');
-		// Continuation lines must carry the quote marker or markdown drops out of it.
-		expect(text).toContain('line one\n> line two');
-	});
-
-	it('closes the blockquote once the answer starts', () => {
-		const h = harness(true);
-		emitChunk(
-			{
-				response: {
-					candidates: [
-						{
-							content: {
-								role: 'model',
-								parts: [{ text: 'thinking', thought: true }, { text: 'answer' }],
-							},
-						},
-					],
-				},
-			} as GenerateContentResponse,
-			h.context,
-			h.state,
-		);
-		const text = (h.parts as vscode.LanguageModelTextPart[]).map((p) => p.value).join('');
-		expect(text).toMatch(/thinking\n\nanswer$/);
-		expect(h.state.thinkingOpen).toBe(false);
-	});
-
 	it('records the finish reason and usage', () => {
 		const h = harness();
 		emitChunk(
@@ -361,5 +319,63 @@ describe('SignatureCache', () => {
 		}
 		expect(cache.get('k0')).toBeUndefined();
 		expect(cache.get('k519')).toBe('s519');
+	});
+});
+
+describe('reasoning rendering', () => {
+	function harness(showThinking: boolean) {
+		const parts: unknown[] = [];
+		return {
+			parts,
+			context: {
+				names: new ToolNameMap(),
+				signatures: new SignatureCache(),
+				showThinking,
+				progress: { report: (p: unknown) => parts.push(p) },
+			} as any,
+			state: newEmitState(),
+		};
+	}
+
+	const thoughtChunk = (text: string) =>
+		({
+			response: { candidates: [{ content: { role: 'model', parts: [{ text, thought: true }] } }] },
+		}) as GenerateContentResponse;
+
+	it('emits a native thinking part when the runtime provides one', () => {
+		const h = harness(true);
+		emitChunk(thoughtChunk('weighing options'), h.context, h.state);
+		expect(h.parts).toHaveLength(1);
+		expect(h.parts[0]).toBeInstanceOf((vscode as any).LanguageModelThinkingPart);
+		expect((h.parts[0] as any).value).toBe('weighing options');
+	});
+
+	it('groups streamed reasoning under one id so it renders as a single block', () => {
+		const h = harness(true);
+		emitChunk(thoughtChunk('first'), h.context, h.state);
+		emitChunk(thoughtChunk('second'), h.context, h.state);
+		const ids = (h.parts as any[]).map((p) => p.id);
+		expect(ids[0]).toBeDefined();
+		expect(ids[0]).toBe(ids[1]);
+	});
+
+	it('falls back to a blockquote when the runtime has no thinking part', () => {
+		const ctor = (vscode as any).LanguageModelThinkingPart;
+		delete (vscode as any).LanguageModelThinkingPart;
+		try {
+			const h = harness(true);
+			emitChunk(thoughtChunk('line one\nline two'), h.context, h.state);
+			const text = (h.parts as vscode.LanguageModelTextPart[]).map((p) => p.value).join('');
+			expect(text).toContain('**Reasoning**');
+			expect(text).toContain('line one\n> line two');
+		} finally {
+			(vscode as any).LanguageModelThinkingPart = ctor;
+		}
+	});
+
+	it('emits nothing at all when reasoning is turned off', () => {
+		const h = harness(false);
+		emitChunk(thoughtChunk('hidden'), h.context, h.state);
+		expect(h.parts).toHaveLength(0);
 	});
 });

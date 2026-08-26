@@ -3,6 +3,35 @@ import { ToolNameMap } from './schema';
 import { SignatureCache, textKey } from './thinking';
 import { GeminiCandidate, GeminiPart, GeminiUsage, GenerateContentResponse } from './types';
 
+/**
+ * VS Code ships `LanguageModelThinkingPart` at runtime but does not declare it in
+ * `@types/vscode`, so it is reached through a widened view of the module and
+ * feature-detected. When it is missing — older VS Code — reasoning falls back to a
+ * markdown blockquote, which is the best a text-only stream can do.
+ */
+type VSCodeWithThinkingPart = typeof vscode & {
+	LanguageModelThinkingPart?: new (
+		value: string | string[],
+		id?: string,
+		metadata?: { readonly [key: string]: unknown },
+	) => unknown;
+};
+
+export function createThinkingPart(
+	value: string,
+	id?: string,
+): vscode.LanguageModelResponsePart | undefined {
+	const ThinkingPart = (vscode as VSCodeWithThinkingPart).LanguageModelThinkingPart;
+	if (typeof ThinkingPart !== 'function') {
+		return undefined;
+	}
+	return new ThinkingPart(value, id) as vscode.LanguageModelResponsePart;
+}
+
+export function supportsThinkingPart(): boolean {
+	return typeof (vscode as VSCodeWithThinkingPart).LanguageModelThinkingPart === 'function';
+}
+
 export interface EmitContext {
 	names: ToolNameMap;
 	signatures: SignatureCache;
@@ -16,12 +45,14 @@ export interface EmitState {
 	textBuffer: string;
 	/** True while mid-blockquote, so the next answer token can close it. */
 	thinkingOpen: boolean;
+	/** Groups streamed reasoning chunks into a single collapsible block. */
+	thinkingId: string;
 	finishReason?: string;
 	usage?: GeminiUsage;
 }
 
 export function newEmitState(): EmitState {
-	return { toolCallIndex: 0, textBuffer: '', thinkingOpen: false };
+	return { toolCallIndex: 0, textBuffer: '', thinkingOpen: false, thinkingId: `r${Date.now().toString(36)}` };
 }
 
 /** Unwraps the gateway's `response` envelope, which is absent on some hosts. */
@@ -76,14 +107,21 @@ function emitPart(part: GeminiPart, context: EmitContext, state: EmitState): voi
 	}
 
 	if (part.thought) {
-		// VS Code's provider API has no thinking part even at 1.134 — the response
-		// stream is Text | ToolCall | ToolResult | Data. Third-party providers cannot
-		// produce the collapsible "Thinking…" block Copilot's own models get, so the
-		// best available option is a markdown blockquote, which at least renders as a
-		// visually distinct band rather than blending into the answer.
 		if (!context.showThinking) {
 			return;
 		}
+
+		// Preferred path: a real thinking part, which Copilot Chat renders as its own
+		// collapsible "Thinking…" block. Streamed chunks share one id so they group
+		// into a single block rather than one per token.
+		const thinking = createThinkingPart(part.text, state.thinkingId);
+		if (thinking) {
+			context.progress.report(thinking);
+			return;
+		}
+
+		// Fallback for VS Code builds without the thinking part: a markdown blockquote,
+		// which at least reads as a distinct band rather than blending into the answer.
 		if (!state.thinkingOpen) {
 			state.thinkingOpen = true;
 			context.progress.report(new vscode.LanguageModelTextPart('> 🧠 **Reasoning**\n>\n> '));

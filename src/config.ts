@@ -13,7 +13,7 @@ export const config = {
 		return get<ReasoningEffort>('reasoningEffort', 'medium');
 	},
 	showThinking(): boolean {
-		return get('showThinking', false);
+		return get('showThinking', true);
 	},
 	projectId(): string | undefined {
 		return get('projectId', '').trim() || undefined;
