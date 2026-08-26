@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- Rewrite the README, which is also the marketplace listing.
+- Keep OAuth client credentials out of version control: `src/api/credentials.ts` is
+  git-ignored and generated from a committed template, and the build refuses to run
+  without it rather than producing an extension that cannot authenticate.
+- Read the extension id from the extension context instead of hardcoding it, so the
+  "Open Settings" action survives a publisher rename.
+
 ## 0.3.0
 
 - Request and render model reasoning behind `antigravity.showThinking`. Gemini receives
