@@ -150,6 +150,9 @@ export async function fetchCatalog(client: GatewayClient, op: string, project: s
  */
 const NON_CHAT = /^tab[_-]|^chat[_-]?\d+$|tiered|image/i;
 
+/** Antigravity lists no Gemini older than 3, so neither do we. */
+const MIN_GEMINI_GENERATION = 3;
+
 interface GeminiLine {
 	line: string;
 	version: number;
@@ -210,24 +213,18 @@ export function curateModels(models: ModelSpec[], keepAllGenerations: boolean): 
 		return deduped;
 	}
 
-	// Antigravity's own model list offers Flash, Pro, Claude and GPT-OSS. Flash Lite is
-	// a separate line the backend can route to but that Antigravity never presents as a
-	// choice, so it does not belong in the picker either.
-	const offered = deduped.filter((model) => parseGeminiLine(model.id, model.name)?.line !== 'flash-lite');
-
-	// Keep only the newest generation of each Gemini line; all its tiers survive.
-	const newest = new Map<string, number>();
-	for (const model of offered) {
+	// Match Antigravity's own model list rather than inferring one. It offers every
+	// Gemini 3 generation side by side — 3.5, 3.6 and 3.7 Flash are three separate
+	// choices there, not a ladder where the newest wins — alongside Claude and GPT-OSS.
+	// What it never offers: anything older than Gemini 3, and Flash Lite, a line of its
+	// own that the backend can route to but Antigravity does not present.
+	return deduped.filter((model) => {
 		const parsed = parseGeminiLine(model.id, model.name);
-		if (parsed) {
-			newest.set(parsed.line, Math.max(newest.get(parsed.line) ?? 0, parsed.version));
+		// Claude and GPT-OSS have no generation ladder and are always offered.
+		if (!parsed) {
+			return true;
 		}
-	}
-
-	return offered.filter((model) => {
-		const parsed = parseGeminiLine(model.id, model.name);
-		// Non-Gemini models (Claude, GPT-OSS) have no generation ladder to prune.
-		return !parsed || parsed.version === newest.get(parsed.line);
+		return parsed.line !== 'flash-lite' && parsed.version >= MIN_GEMINI_GENERATION;
 	});
 }
 

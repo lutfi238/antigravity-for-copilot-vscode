@@ -196,9 +196,16 @@ describe('curateModels', () => {
 		expect(names.some((n) => /Image/.test(n))).toBe(false);
 	});
 
-	it('keeps only the newest Flash generation', () => {
+	it('keeps every Gemini 3 Flash generation, as Antigravity lists them', () => {
+		// 3.5, 3.6 and 3.7 Flash are three separate choices in Antigravity's own model
+		// list, not a ladder where the newest supersedes the rest.
 		expect(names).toContain('Gemini 3.7 Flash (High)');
-		expect(names.some((n) => /3\.6 Flash|3\.5 Flash/.test(n))).toBe(false);
+		expect(names).toContain('Gemini 3.6 Flash (High)');
+		expect(names).toContain('Gemini 3.5 Flash (High)');
+	});
+
+	it('drops Gemini older than 3, which Antigravity does not list', () => {
+		expect(names).not.toContain('Gemini 2.5 Pro');
 	});
 
 	it('keeps every tier of the generation it kept', () => {
@@ -207,11 +214,9 @@ describe('curateModels', () => {
 		);
 	});
 
-	it('prunes Pro and Flash Lite on their own ladders, not against Flash', () => {
-		// 3.1 Pro is the newest Pro even though 3.7 Flash exists.
+	it('keeps Pro alongside Flash rather than judging them together', () => {
 		expect(names).toContain('Gemini 3.1 Pro (High)');
 		expect(names).toContain('Gemini 3.1 Pro (Low)');
-		expect(names).not.toContain('Gemini 2.5 Pro');
 	});
 
 	it('drops Flash Lite, which Antigravity never offers as a choice', () => {
@@ -219,12 +224,18 @@ describe('curateModels', () => {
 	});
 
 	it('offers exactly what the Antigravity model list does', () => {
-		expect(names.sort()).toEqual([
+		expect([...names].sort()).toEqual([
 			'Claude Opus 4.6 (Thinking)',
 			'Claude Sonnet 4.6 (Thinking)',
 			'GPT-OSS 120B (Medium)',
 			'Gemini 3.1 Pro (High)',
 			'Gemini 3.1 Pro (Low)',
+			'Gemini 3.5 Flash (High)',
+			'Gemini 3.5 Flash (Low)',
+			'Gemini 3.5 Flash (Medium)',
+			'Gemini 3.6 Flash (High)',
+			'Gemini 3.6 Flash (Low)',
+			'Gemini 3.6 Flash (Medium)',
 			'Gemini 3.7 Flash (High)',
 			'Gemini 3.7 Flash (Low)',
 			'Gemini 3.7 Flash (Medium)',
@@ -241,18 +252,17 @@ describe('curateModels', () => {
 		expect(names).toContain('GPT-OSS 120B (Medium)');
 	});
 
-	it('cuts the picker to a usable size', () => {
+	it('still cuts the raw catalogue down substantially', () => {
 		expect(raw.length).toBe(27);
-		expect(curated.length).toBeLessThanOrEqual(10);
+		expect(curated.length).toBeLessThan(raw.length);
 	});
 
 	it('keeps Flash Lite under "all", for anyone who wants it', () => {
 		expect(curateModels(raw, true).some((m) => /Flash Lite/i.test(m.name))).toBe(true);
 	});
 
-	it('keeps old generations under "all" but still drops the internals', () => {
+	it('keeps pre-Gemini-3 models under "all" but still drops the internals', () => {
 		const all = curateModels(raw, true).map((m) => m.name);
-		expect(all).toContain('Gemini 3.6 Flash (High)');
 		expect(all).toContain('Gemini 2.5 Pro');
 		expect(all.some((n) => /^Tab_|^Chat_|Tiered/.test(n))).toBe(false);
 	});

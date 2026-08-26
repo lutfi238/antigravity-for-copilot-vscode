@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.1
+
+- Keep every Gemini 3 Flash generation. Antigravity lists 3.5, 3.6 and 3.7 Flash as
+  three separate choices; 0.12.0 pruned to the newest of each line and dropped two of
+  them. The rule is now a floor — Gemini 3 and newer, minus Flash Lite — which matches
+  the published list instead of inferring one.
+
 ## 0.12.0
 
 - Match the picker to Antigravity own model list. Flash Lite is a line the backend can
