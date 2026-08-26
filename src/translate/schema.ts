@@ -1,229 +1,195 @@
 /**
- * The gateway validates tool schemas with strict protobuf rules that reject most of
- * what VS Code and MCP servers actually emit. Everything in this file exists to make
- * a real-world JSON Schema survive that validator.
- */
-
-/**
- * Which validator the schema has to satisfy.
+ * Rewrites tool schemas into what the Antigravity gateway accepts.
  *
- * The gateway speaks Gemini's wire format for every model, but it does not validate
- * tool schemas itself for every model. Gemini requests go to a protobuf validator that
- * wants uppercase type enums; Claude requests are forwarded to Anthropic, which
- * validates against real JSON Schema draft 2020-12 and rejects those same uppercase
- * types outright. One output cannot satisfy both.
+ * Two validators sit in series and both must pass. The gateway parses `parameters`
+ * with protobuf JSON, which hard-fails on any unrecognised key ("Unknown name X ...
+ * Cannot find field"). For Claude the request is then forwarded to Anthropic, which
+ * validates real JSON Schema draft 2020-12. Types therefore stay lowercase — the
+ * gateway accepts them and uppercase proto enum names are what Anthropic rejects.
  */
-export type SchemaDialect = 'gemini' | 'json-schema';
 
-/**
- * Annotation keywords VS Code and MCP servers attach that mean nothing to either
- * validator. Legal in JSON Schema — unknown keywords are allowed — but dropped to keep
- * the payload to what actually describes the tool.
- */
-/** Keys inside these objects are property names, not keywords, and are never filtered. */
-const NAME_KEYED_CONTAINERS = new Set(['properties', 'patternProperties', '$defs', 'definitions']);
+/** Constraints the gateway drops. Their meaning is preserved as a description hint. */
+const UNSUPPORTED_CONSTRAINTS = [
+	'minLength',
+	'maxLength',
+	'exclusiveMinimum',
+	'exclusiveMaximum',
+	'pattern',
+	'minItems',
+	'maxItems',
+	'format',
+	'default',
+	'examples',
+] as const;
 
-const NON_STANDARD_KEYWORDS = new Set([
+/** Everything the gateway's protobuf has no field for. */
+const UNSUPPORTED_KEYWORDS = new Set<string>([
+	...UNSUPPORTED_CONSTRAINTS,
+	'$schema',
+	'$defs',
+	'definitions',
+	'const',
+	'$ref',
+	'additionalProperties',
+	'propertyNames',
+	'title',
+	'$id',
+	'$comment',
+	// Editor-only annotations VS Code and MCP servers attach.
 	'enumDescriptions',
 	'markdownDescription',
 	'markdownEnumDescriptions',
 	'deprecationMessage',
 	'defaultSnippets',
-	'patternErrorMessage',
 	'errorMessage',
+	'patternErrorMessage',
 	'editPresentation',
-	'scope',
-	'order',
-	'tags',
 	'doNotSuggest',
 ]);
 
+/** Keys inside these are author-chosen names, never keywords. */
+const NAME_KEYED_CONTAINERS = new Set(['properties', 'patternProperties']);
+
+/** Claude's validated tool mode rejects an object schema with no properties. */
+const PLACEHOLDER = '_placeholder';
+
+type Obj = Record<string, unknown>;
+
+function isObj(value: unknown): value is Obj {
+	return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function appendHint(schema: Obj, hint: string): void {
+	const existing = typeof schema.description === 'string' ? schema.description : '';
+	schema.description = existing ? `${existing} (${hint})` : hint;
+}
+
 /**
- * Draft 2020-12 output: keep the schema as authored, minus the editor-only annotations.
- * Types stay lowercase — uppercasing them is exactly what Anthropic rejects.
+ * Rewrites one schema node. Constraints the gateway cannot express are folded into the
+ * description so the model still knows about them, then removed.
  */
-function sanitizeForJsonSchema(schema: unknown): unknown {
-	if (Array.isArray(schema)) {
-		return schema.map(sanitizeForJsonSchema);
+function clean(node: unknown): unknown {
+	if (Array.isArray(node)) {
+		return node.map(clean);
 	}
-	if (schema === null || typeof schema !== 'object') {
-		return schema;
+	if (!isObj(node)) {
+		return node;
 	}
 
-	const out: Record<string, unknown> = {};
-	for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
-		// Inside these, the keys are author-chosen names, not schema keywords. Filtering
-		// them by keyword would silently delete a property genuinely called "tags" or
-		// "scope" and change the tool's contract.
-		if (NAME_KEYED_CONTAINERS.has(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-			const mapped: Record<string, unknown> = {};
-			for (const [name, sub] of Object.entries(value as Record<string, unknown>)) {
-				mapped[name] = sanitizeForJsonSchema(sub);
+	const out: Obj = {};
+
+	// `const: X` has no proto field; a single-value enum says the same thing.
+	if ('const' in node && !('enum' in node)) {
+		out.enum = [node.const];
+	}
+
+	for (const [key, value] of Object.entries(node)) {
+		if (UNSUPPORTED_KEYWORDS.has(key)) {
+			continue;
+		}
+
+		if (NAME_KEYED_CONTAINERS.has(key) && isObj(value)) {
+			// Filtering these keys by keyword would delete a tool parameter genuinely
+			// named "title" or "pattern" and silently change the tool's contract.
+			const mapped: Obj = {};
+			for (const [name, sub] of Object.entries(value)) {
+				mapped[name] = clean(sub);
 			}
 			out[key] = mapped;
 			continue;
 		}
-		if (NON_STANDARD_KEYWORDS.has(key)) {
+
+		if (key === 'allOf' || key === 'oneOf' || key === 'anyOf') {
+			// Only one composition survives; take the first branch and note the rest.
+			const branches = Array.isArray(value) ? value.filter(isObj) : [];
+			if (branches.length > 0) {
+				Object.assign(out, clean(branches[0]) as Obj);
+				if (branches.length > 1) {
+					appendHint(out, `one of ${branches.length} accepted shapes`);
+				}
+			}
 			continue;
 		}
-		out[key] = sanitizeForJsonSchema(value);
+
+		if (key === 'type') {
+			// `["string", "null"]` collapses to the concrete type; lowercase is kept.
+			const resolved = Array.isArray(value)
+				? value.find((entry) => typeof entry === 'string' && entry !== 'null')
+				: value;
+			if (typeof resolved === 'string') {
+				out.type = resolved.toLowerCase();
+			}
+			continue;
+		}
+
+		out[key] = clean(value);
+	}
+
+	// Fold dropped constraints into the description rather than losing them silently.
+	const notes: string[] = [];
+	for (const key of UNSUPPORTED_CONSTRAINTS) {
+		const value = node[key];
+		if (value !== undefined && typeof value !== 'object') {
+			notes.push(`${key}: ${String(value)}`);
+		}
+	}
+	if (notes.length > 0) {
+		appendHint(out, notes.join(', '));
+	}
+
+	// An explicit type is required; infer it from whatever survived.
+	if (!out.type) {
+		if (out.properties) {
+			out.type = 'object';
+		} else if (out.items) {
+			out.type = 'array';
+		} else if (out.enum) {
+			out.type = 'string';
+		}
+	}
+
+	// `required` may only name properties that still exist.
+	if (Array.isArray(out.required) && isObj(out.properties)) {
+		const known = new Set(Object.keys(out.properties));
+		out.required = (out.required as unknown[]).filter((n) => typeof n === 'string' && known.has(n));
+		if ((out.required as unknown[]).length === 0) {
+			delete out.required;
+		}
+	}
+
+	return out;
+}
+
+/** Gives an empty object schema one property, which Claude's validated mode requires. */
+function fillEmptyObjects(node: unknown): unknown {
+	if (Array.isArray(node)) {
+		return node.map(fillEmptyObjects);
+	}
+	if (!isObj(node)) {
+		return node;
+	}
+
+	const out: Obj = {};
+	for (const [key, value] of Object.entries(node)) {
+		out[key] = fillEmptyObjects(value);
+	}
+
+	if (out.type === 'object' && (!isObj(out.properties) || Object.keys(out.properties).length === 0)) {
+		out.properties = {
+			[PLACEHOLDER]: { type: 'boolean', description: 'Placeholder. Always pass true.' },
+		};
+		out.required = [PLACEHOLDER];
 	}
 	return out;
 }
 
-/** Rewrites a tool schema into whatever the model's validator will accept. */
-export function sanitizeSchema(schema: unknown, dialect: SchemaDialect = 'gemini'): unknown {
-	return dialect === 'json-schema' ? sanitizeForJsonSchema(schema) : sanitizeForGemini(schema);
+export function sanitizeSchema(schema: unknown): unknown {
+	return fillEmptyObjects(clean(schema));
 }
 
-/**
- * The complete set of fields the gateway's `Schema` proto defines.
- *
- * This is an ALLOWLIST, not a denylist, and that distinction is the whole point.
- * The gateway parses schemas with protobuf JSON, which hard-fails on any unrecognised
- * key ("Unknown name X ... Cannot find field") rather than ignoring it. JSON Schema
- * has a long tail of annotation keywords, and VS Code and MCP servers add their own on
- * top (`enumDescriptions`, `markdownDescription`, `deprecationMessage`, …). Enumerating
- * what to remove is a losing game — one unknown keyword anywhere in a 40-tool payload
- * fails the entire request. So anything not listed here is dropped.
- */
-const ALLOWED_KEYWORDS = new Set([
-	'type',
-	'format',
-	'description',
-	'nullable',
-	'enum',
-	'items',
-	'properties',
-	'required',
-	'anyOf',
-	'propertyOrdering',
-	'minimum',
-	'maximum',
-	'minItems',
-	'maxItems',
-	'minLength',
-	'maxLength',
-	'minProperties',
-	'maxProperties',
-	'pattern',
-]);
-
-/** The only `format` values the gateway accepts on a string. */
-const ALLOWED_STRING_FORMATS = new Set(['enum', 'date-time']);
-
-const VALID_TYPES = new Set(['STRING', 'NUMBER', 'INTEGER', 'BOOLEAN', 'ARRAY', 'OBJECT']);
-
-/**
- * Rewrites a JSON Schema into the subset the gateway accepts.
- *
- * The two rewrites that matter (rather than plain deletions): `const: X` becomes
- * `enum: [X]`, which is the documented substitution, and `oneOf`/`allOf` collapse into
- * `anyOf`, which is the only composition keyword supported.
- */
-function sanitizeForGemini(schema: unknown): unknown {
-	if (Array.isArray(schema)) {
-			return schema.map(sanitizeForGemini);
-	}
-	if (schema === null || typeof schema !== 'object') {
-		return schema;
-	}
-
-	const input = schema as Record<string, unknown>;
-	const output: Record<string, unknown> = {};
-
-	for (const [key, value] of Object.entries(input)) {
-		if (key === 'const') {
-			// A single-value enum is the documented replacement for const.
-			output.enum = [typeof value === 'string' ? value : String(value)];
-			continue;
-		}
-		if (key === 'oneOf' || key === 'allOf') {
-			if (Array.isArray(value) && value.length > 0) {
-				output.anyOf = value.map(sanitizeForGemini);
-			}
-			continue;
-		}
-		if (!ALLOWED_KEYWORDS.has(key)) {
-			continue;
-		}
-		if (key === 'type') {
-			const normalized = normalizeType(value);
-			if (normalized) {
-				output.type = normalized;
-			}
-			// A `["string", "null"]` union carries nullability the proto expresses
-			// with a separate field.
-			if (Array.isArray(value) && value.includes('null')) {
-				output.nullable = true;
-			}
-			continue;
-		}
-		if (key === 'format') {
-			if (typeof value === 'string' && ALLOWED_STRING_FORMATS.has(value)) {
-				output.format = value;
-			}
-			continue;
-		}
-		if (key === 'enum') {
-			// Proto enums are string-valued; numeric or boolean members fail parsing.
-			if (Array.isArray(value)) {
-				output.enum = value.map((entry) => (typeof entry === 'string' ? entry : String(entry)));
-			}
-			continue;
-		}
-		if (key === 'properties' && value && typeof value === 'object') {
-			const properties: Record<string, unknown> = {};
-			for (const [name, sub] of Object.entries(value as Record<string, unknown>)) {
-				properties[name] = sanitizeForGemini(sub);
-			}
-			output.properties = properties;
-			continue;
-		}
-		if (key === 'description') {
-			if (typeof value === 'string') {
-				output.description = value;
-			}
-			continue;
-		}
-		output[key] = sanitizeForGemini(value);
-	}
-
-	// The validator wants an explicit type; infer it from whatever survived.
-	if (output.properties && !output.type) {
-		output.type = 'OBJECT';
-	}
-	if (output.items && !output.type) {
-		output.type = 'ARRAY';
-	}
-	if (output.enum && !output.type) {
-		output.type = 'STRING';
-	}
-
-	// `required` must only name properties that survived sanitization.
-	if (Array.isArray(output.required) && output.properties) {
-		const known = new Set(Object.keys(output.properties as Record<string, unknown>));
-		output.required = (output.required as unknown[]).filter((name) => typeof name === 'string' && known.has(name));
-		if ((output.required as unknown[]).length === 0) {
-			delete output.required;
-		}
-	}
-
-	return output;
-}
-
-/** Proto enums are case-sensitive, so `"string"` must become `"STRING"`. */
-function normalizeType(value: unknown): string | undefined {
-	if (Array.isArray(value)) {
-		// JSON Schema unions like ["string", "null"]: keep the first real type.
-		const first = value.find((entry) => typeof entry === 'string' && entry !== 'null');
-		return normalizeType(first);
-	}
-	if (typeof value !== 'string') {
-		return undefined;
-	}
-	const upper = value.toUpperCase();
-	return VALID_TYPES.has(upper) ? upper : undefined;
+/** The parameters to send for a tool that declares no input at all. */
+export function emptySchema(): Obj {
+	return fillEmptyObjects({ type: 'object', properties: {} }) as Obj;
 }
 
 const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_.:-]{0,63}$/;

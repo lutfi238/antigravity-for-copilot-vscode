@@ -108,8 +108,8 @@ describe('buildRequest — tool round trip', () => {
 		expect(declaration?.name).toBe('t_1mcp_search');
 		expect(names.resolve('t_1mcp_search')).toBe('1mcp/search');
 		expect(declaration?.parameters).toEqual({
-			type: 'OBJECT',
-			properties: { q: { enum: ['fixed'], type: 'STRING' } },
+			type: 'object',
+			properties: { q: { enum: ['fixed'], type: 'string' } },
 		});
 	});
 

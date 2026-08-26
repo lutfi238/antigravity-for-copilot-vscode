@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0
+
+- Rewrite tool-schema sanitization against the contract the shipping client uses. Two
+  validators run in series and both must pass: the gateway parses `parameters` with
+  protobuf JSON and rejects any unknown key, then Claude requests are forwarded to
+  Anthropic, which validates JSON Schema draft 2020-12.
+- Types are now lowercase for every model. Uppercase proto enum names happened to pass
+  the gateway but are exactly what Anthropic rejects; the 0.10.0 dialect split traded
+  one failure for the other.
+- Dropped constraints (`pattern`, `minLength`, `format`, ...) are folded into the
+  description instead of vanishing, so the model still knows about them.
+- Empty object schemas gain a placeholder property, which Claude validated tool mode
+  requires.
+
 ## 0.10.0
 
 - Fix Claude and GPT-OSS failing every request with "input_schema: JSON schema is

@@ -1,127 +1,133 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeSchema, sanitizeToolName, ToolNameMap } from '../src/translate/schema';
+import { emptySchema, sanitizeSchema, sanitizeToolName, ToolNameMap } from '../src/translate/schema';
 
 describe('sanitizeSchema', () => {
-	it('rewrites const into a single-value enum', () => {
-		expect(sanitizeSchema({ const: 'fixed' })).toEqual({ enum: ['fixed'], type: 'STRING' });
-	});
-
-	it('strips enumDescriptions, the VS Code keyword that broke agent mode', () => {
-		// The gateway parses with protobuf JSON and hard-fails on any unknown key:
-		// "Unknown name enumDescriptions ... Cannot find field". One such keyword
-		// anywhere in a 40-tool payload fails the whole request.
-		const result = sanitizeSchema({
-			type: 'string',
-			enum: ['a', 'b'],
-			enumDescriptions: ['first', 'second'],
+	it('keeps types lowercase — both validators depend on it', () => {
+		// The gateway accepts lowercase; Anthropic rejects uppercase proto enum names
+		// with "input_schema: JSON schema is invalid. It must match draft 2020-12".
+		const out = sanitizeSchema({
+			type: 'object',
+			properties: { count: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } } },
 		}) as any;
-		expect(result).toEqual({ type: 'STRING', enum: ['a', 'b'] });
+		expect(out.type).toBe('object');
+		expect(out.properties.count.type).toBe('integer');
+		expect(out.properties.tags.items.type).toBe('string');
 	});
 
-	it('drops unknown keywords by default rather than by name', () => {
-		// An allowlist means keywords nobody has seen yet are handled too.
-		const result = sanitizeSchema({
-			type: 'string',
-			markdownDescription: 'x',
-			deprecationMessage: 'y',
-			defaultSnippets: [],
-			someFutureKeyword: 1,
-		}) as any;
-		expect(result).toEqual({ type: 'STRING' });
+	it('strips $comment, which the gateway rejected on five tools at once', () => {
+		const out = sanitizeSchema({ type: 'string', $comment: 'note' }) as any;
+		expect(out).toEqual({ type: 'string' });
 	});
 
-	it('preserves the fields the proto does define', () => {
-		const result = sanitizeSchema({
-			type: 'array',
-			description: 'a list',
-			minItems: 1,
-			maxItems: 5,
-			items: { type: 'string', pattern: '^a', minLength: 1 },
-		}) as any;
-		expect(result).toEqual({
-			type: 'ARRAY',
-			description: 'a list',
-			minItems: 1,
-			maxItems: 5,
-			items: { type: 'STRING', pattern: '^a', minLength: 1 },
-		});
-	});
-
-	it('converts a nullable union into the proto nullable field', () => {
-		expect(sanitizeSchema({ type: ['string', 'null'] })).toEqual({ type: 'STRING', nullable: true });
-	});
-
-	it('stringifies non-string enum members', () => {
-		expect(sanitizeSchema({ enum: [1, true, 'x'] })).toEqual({
-			type: 'STRING',
-			enum: ['1', 'true', 'x'],
-		});
-	});
-
-	it('strips the keywords the gateway rejects', () => {
-		const result = sanitizeSchema({
+	it('strips every keyword the protobuf has no field for', () => {
+		const out = sanitizeSchema({
 			type: 'object',
 			$schema: 'https://json-schema.org/draft/2020-12/schema',
 			$id: 'urn:x',
 			$defs: { a: {} },
+			$ref: '#/$defs/a',
 			additionalProperties: false,
-			default: {},
-			examples: [1],
+			propertyNames: { pattern: '^a' },
 			title: 'Thing',
 			properties: { a: { type: 'string' } },
-		}) as Record<string, unknown>;
-
-		for (const key of ['$schema', '$id', '$defs', 'additionalProperties', 'default', 'examples', 'title']) {
-			expect(result).not.toHaveProperty(key);
-		}
-		expect(result.type).toBe('OBJECT');
-	});
-
-	it('uppercases types, since proto enums are case-sensitive', () => {
-		const result = sanitizeSchema({
-			type: 'object',
-			properties: { count: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } } },
 		}) as any;
 
-		expect(result.type).toBe('OBJECT');
-		expect(result.properties.count.type).toBe('INTEGER');
-		expect(result.properties.tags.type).toBe('ARRAY');
-		expect(result.properties.tags.items.type).toBe('STRING');
+		for (const key of ['$schema', '$id', '$defs', '$ref', 'additionalProperties', 'propertyNames', 'title']) {
+			expect(out).not.toHaveProperty(key);
+		}
+		expect(out.properties.a.type).toBe('string');
 	});
 
-	it('collapses oneOf and allOf into anyOf', () => {
-		const result = sanitizeSchema({ oneOf: [{ type: 'string' }, { type: 'number' }] }) as any;
-		expect(result.anyOf).toHaveLength(2);
-		expect(result).not.toHaveProperty('oneOf');
+	it('strips editor-only annotations', () => {
+		const out = sanitizeSchema({
+			type: 'string',
+			enum: ['a'],
+			enumDescriptions: ['first'],
+			markdownDescription: 'x',
+			defaultSnippets: [],
+		}) as any;
+		expect(out).toEqual({ type: 'string', enum: ['a'] });
 	});
 
-	it('narrows a non-null union to its first concrete type', () => {
-		expect(sanitizeSchema({ type: ['string', 'number'] })).toEqual({ type: 'STRING' });
+	it('preserves dropped constraints as a description hint rather than losing them', () => {
+		// The model still needs to know a value is capped, even if the wire cannot say so.
+		const out = sanitizeSchema({ type: 'string', minLength: 2, maxLength: 8, pattern: '^a' }) as any;
+		expect(out.type).toBe('string');
+		expect(out.minLength).toBeUndefined();
+		expect(out.description).toContain('minLength: 2');
+		expect(out.description).toContain('pattern: ^a');
 	});
 
-	it('keeps date-time format but drops unsupported ones', () => {
-		expect(sanitizeSchema({ type: 'string', format: 'date-time' })).toEqual({
-			type: 'STRING',
-			format: 'date-time',
-		});
-		expect(sanitizeSchema({ type: 'string', format: 'uri' })).toEqual({ type: 'STRING' });
+	it('keeps an existing description when appending a hint', () => {
+		const out = sanitizeSchema({ type: 'string', description: 'A name', maxLength: 8 }) as any;
+		expect(out.description).toBe('A name (maxLength: 8)');
+	});
+
+	it('rewrites const into a single-value enum', () => {
+		const out = sanitizeSchema({ const: 'fixed' }) as any;
+		expect(out.enum).toEqual(['fixed']);
+		expect(out.type).toBe('string');
+		expect(out).not.toHaveProperty('const');
+	});
+
+	it('collapses a nullable union to the concrete type', () => {
+		expect(sanitizeSchema({ type: ['string', 'null'] })).toEqual({ type: 'string' });
+	});
+
+	it('flattens composition to its first branch and notes the rest', () => {
+		const out = sanitizeSchema({
+			oneOf: [
+				{ type: 'object', properties: { a: { type: 'string' } } },
+				{ type: 'object', properties: { b: { type: 'number' } } },
+			],
+		}) as any;
+		expect(out).not.toHaveProperty('oneOf');
+		expect(out.properties.a.type).toBe('string');
+		expect(out.description).toContain('2 accepted shapes');
+	});
+
+	it('gives an empty object schema a property, which Claude requires', () => {
+		const out = sanitizeSchema({ type: 'object', properties: {} }) as any;
+		expect(Object.keys(out.properties)).toEqual(['_placeholder']);
+		expect(out.required).toEqual(['_placeholder']);
+	});
+
+	it('builds the same placeholder for a tool that declares no input', () => {
+		const out = emptySchema() as any;
+		expect(out.type).toBe('object');
+		expect(out.properties._placeholder.type).toBe('boolean');
 	});
 
 	it('drops required entries whose property did not survive', () => {
-		const result = sanitizeSchema({
+		const out = sanitizeSchema({
 			type: 'object',
 			properties: { kept: { type: 'string' } },
 			required: ['kept', 'gone'],
 		}) as any;
-		expect(result.required).toEqual(['kept']);
+		expect(out.required).toEqual(['kept']);
+	});
+
+	it('never filters author-chosen property names as if they were keywords', () => {
+		// A tool parameter called "title" or "pattern" must survive, even though those
+		// are keywords one level up.
+		const out = sanitizeSchema({
+			type: 'object',
+			properties: {
+				title: { type: 'string' },
+				pattern: { type: 'string' },
+				format: { type: 'string' },
+				$comment: { type: 'string' },
+			},
+		}) as any;
+		expect(Object.keys(out.properties)).toEqual(['title', 'pattern', 'format', '$comment']);
 	});
 
 	it('recurses through nested properties', () => {
-		const result = sanitizeSchema({
+		const out = sanitizeSchema({
 			type: 'object',
 			properties: { outer: { type: 'object', properties: { inner: { const: 7 } } } },
 		}) as any;
-		expect(result.properties.outer.properties.inner).toEqual({ enum: ['7'], type: 'STRING' });
+		expect(out.properties.outer.properties.inner.enum).toEqual([7]);
 	});
 });
 
@@ -179,90 +185,3 @@ describe('ToolNameMap', () => {
 	});
 });
 
-describe('sanitizeSchema — dialects', () => {
-	const SRC = {
-		type: 'object',
-		properties: {
-			mode: { type: 'string', enum: ['a', 'b'], enumDescriptions: ['first', 'second'] },
-			count: { type: 'integer' },
-			tags: { type: 'array', items: { type: 'string' } },
-		},
-		required: ['mode'],
-		additionalProperties: false,
-	};
-
-	it('uppercases types for Gemini, whose protobuf validator demands enum names', () => {
-		const out = sanitizeSchema(SRC, 'gemini') as any;
-		expect(out.type).toBe('OBJECT');
-		expect(out.properties.count.type).toBe('INTEGER');
-	});
-
-	it('keeps types lowercase for Claude, which validates real JSON Schema', () => {
-		// Uppercase types are precisely what Anthropic rejects with
-		// "input_schema: JSON schema is invalid. It must match draft 2020-12".
-		const out = sanitizeSchema(SRC, 'json-schema') as any;
-		expect(out.type).toBe('object');
-		expect(out.properties.count.type).toBe('integer');
-		expect(out.properties.tags.items.type).toBe('string');
-	});
-
-	it('keeps standard keywords Gemini would have dropped', () => {
-		const out = sanitizeSchema(SRC, 'json-schema') as any;
-		expect(out.additionalProperties).toBe(false);
-		expect(out.required).toEqual(['mode']);
-	});
-
-	it('still strips editor-only annotations in both dialects', () => {
-		expect((sanitizeSchema(SRC, 'json-schema') as any).properties.mode.enumDescriptions).toBeUndefined();
-		expect((sanitizeSchema(SRC, 'gemini') as any).properties.mode.enumDescriptions).toBeUndefined();
-	});
-
-	it('leaves draft 2020-12 composition alone rather than collapsing it', () => {
-		const out = sanitizeSchema({ oneOf: [{ type: 'string' }, { type: 'number' }] }, 'json-schema') as any;
-		expect(out.oneOf).toHaveLength(2);
-		expect(out.anyOf).toBeUndefined();
-	});
-
-	it('defaults to the Gemini dialect when none is named', () => {
-		expect((sanitizeSchema({ type: 'string' }) as any).type).toBe('STRING');
-	});
-});
-
-describe('sanitizeSchema — property names are not keywords', () => {
-	it('keeps a property genuinely named after a stripped keyword', () => {
-		// A tool with a "tags" or "scope" parameter must not lose it just because those
-		// words also appear in VS Code's annotation vocabulary.
-		const out = sanitizeSchema(
-			{
-				type: 'object',
-				properties: {
-					tags: { type: 'array', items: { type: 'string' } },
-					scope: { type: 'string' },
-					order: { type: 'integer' },
-					errorMessage: { type: 'string' },
-				},
-			},
-			'json-schema',
-		) as any;
-
-		expect(Object.keys(out.properties)).toEqual(['tags', 'scope', 'order', 'errorMessage']);
-		expect(out.properties.tags.items.type).toBe('string');
-	});
-
-	it('still strips those words when they appear as keywords', () => {
-		const out = sanitizeSchema(
-			{ type: 'string', scope: 'resource', order: 3, tags: ['x'] },
-			'json-schema',
-		) as any;
-		expect(out).toEqual({ type: 'string' });
-	});
-
-	it('keeps $defs entries addressable for $ref', () => {
-		const out = sanitizeSchema(
-			{ $ref: '#/$defs/order', $defs: { order: { type: 'object', properties: { id: { type: 'string' } } } } },
-			'json-schema',
-		) as any;
-		expect(out.$ref).toBe('#/$defs/order');
-		expect(out.$defs.order.properties.id.type).toBe('string');
-	});
-});

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ModelSpec } from '../api/models';
-import { sanitizeSchema, SchemaDialect, ToolNameMap } from './schema';
+import { emptySchema, sanitizeSchema, ToolNameMap } from './schema';
 import { applyThinking, ReasoningEffort, SignatureCache, textKey } from './thinking';
 import { GeminiContent, GeminiGenerationConfig, GeminiPart, GeminiRequest, GeminiTool } from './types';
 
@@ -26,10 +26,7 @@ export function buildRequest(options: BuildOptions): BuildResult {
 	const contents = buildContents(options.messages, names, options.signatures);
 	const request: GeminiRequest = { contents };
 
-	// Claude and GPT requests are forwarded to their own providers, which validate
-	// tool schemas as real JSON Schema; only Gemini goes through the protobuf validator.
-	const dialect: SchemaDialect = options.model.family === 'gemini' ? 'gemini' : 'json-schema';
-	const tools = buildTools(options.tools, names, dialect);
+	const tools = buildTools(options.tools, names);
 	if (tools) {
 		request.tools = [tools];
 		request.toolConfig = {
@@ -164,7 +161,6 @@ function flattenToolResult(content: ReadonlyArray<unknown>): string {
 function buildTools(
 	tools: readonly vscode.LanguageModelChatTool[] | undefined,
 	names: ToolNameMap,
-	dialect: SchemaDialect,
 ): GeminiTool | undefined {
 	if (!tools || tools.length === 0) {
 		return undefined;
@@ -174,11 +170,7 @@ function buildTools(
 		name: names.register(tool.name),
 		// The gateway requires a non-empty description.
 		description: tool.description || tool.name,
-		parameters: tool.inputSchema
-			? sanitizeSchema(tool.inputSchema, dialect)
-			: dialect === 'gemini'
-				? { type: 'OBJECT', properties: {} }
-				: { type: 'object', properties: {} },
+		parameters: tool.inputSchema ? sanitizeSchema(tool.inputSchema) : emptySchema(),
 	}));
 
 	return { functionDeclarations };
