@@ -309,3 +309,20 @@ describe('resolveTier', () => {
 		expect(resolveTier(spec('claude-sonnet-4-6', 'Claude Sonnet 4.6'), 'high')).toBe('claude-sonnet-4-6');
 	});
 });
+
+describe('spec — output limits', () => {
+	it('caps Gemini Pro one token below Flash, as the gateway requires', () => {
+		// 65536 to Pro comes back as a bare "Request contains an invalid argument."
+		// with no field named — the hardest kind of off-by-one to trace.
+		expect(spec('gemini-pro-agent', 'x').maxOutputTokens).toBe(65_535);
+		expect(spec('gemini-3.1-pro-low', 'x').maxOutputTokens).toBe(65_535);
+		expect(spec('gemini-3.7-flash-high', 'x').maxOutputTokens).toBe(65_536);
+		expect(spec('gemini-3-flash-agent', 'x').maxOutputTokens).toBe(65_536);
+	});
+
+	it('keeps the other families on their own limits', () => {
+		expect(spec('claude-opus-4-6-thinking', 'x').maxOutputTokens).toBe(64_000);
+		expect(spec('gpt-oss-120b-medium', 'x').maxOutputTokens).toBe(32_768);
+		expect(spec('gemini-3.1-flash-image', 'x').maxOutputTokens).toBe(33_000);
+	});
+});

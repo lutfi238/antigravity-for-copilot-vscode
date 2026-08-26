@@ -355,7 +355,9 @@ export function spec(id: string, name: string): ModelSpec {
 	const family = familyOf(id);
 	const lower = id.toLowerCase();
 
-	// The gateway does not report limits, so they come from the family.
+	// The gateway does not report limits, so they come from the family — and Gemini Pro
+	// caps output one token below Flash. Sending Flash's 65536 to Pro is rejected as
+	// INVALID_ARGUMENT with no field named, which is unusually hard to trace back.
 	const limits =
 		family === 'claude'
 			? { context: 250_000, output: 64_000 }
@@ -363,7 +365,9 @@ export function spec(id: string, name: string): ModelSpec {
 				? { context: 131_072, output: 32_768 }
 				: lower.includes('image')
 					? { context: 66_000, output: 33_000 }
-					: { context: 1_048_576, output: 65_536 };
+					: lower.includes('flash')
+						? { context: 1_048_576, output: 65_536 }
+						: { context: 1_048_576, output: 65_535 };
 
 	// Every current Gemini model selects its thinking level from the tier baked into
 	// the id; only Claude takes an explicit numeric budget.
