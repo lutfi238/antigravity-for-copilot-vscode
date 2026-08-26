@@ -178,3 +178,91 @@ describe('ToolNameMap', () => {
 		expect(new ToolNameMap().resolve('never_seen')).toBe('never_seen');
 	});
 });
+
+describe('sanitizeSchema — dialects', () => {
+	const SRC = {
+		type: 'object',
+		properties: {
+			mode: { type: 'string', enum: ['a', 'b'], enumDescriptions: ['first', 'second'] },
+			count: { type: 'integer' },
+			tags: { type: 'array', items: { type: 'string' } },
+		},
+		required: ['mode'],
+		additionalProperties: false,
+	};
+
+	it('uppercases types for Gemini, whose protobuf validator demands enum names', () => {
+		const out = sanitizeSchema(SRC, 'gemini') as any;
+		expect(out.type).toBe('OBJECT');
+		expect(out.properties.count.type).toBe('INTEGER');
+	});
+
+	it('keeps types lowercase for Claude, which validates real JSON Schema', () => {
+		// Uppercase types are precisely what Anthropic rejects with
+		// "input_schema: JSON schema is invalid. It must match draft 2020-12".
+		const out = sanitizeSchema(SRC, 'json-schema') as any;
+		expect(out.type).toBe('object');
+		expect(out.properties.count.type).toBe('integer');
+		expect(out.properties.tags.items.type).toBe('string');
+	});
+
+	it('keeps standard keywords Gemini would have dropped', () => {
+		const out = sanitizeSchema(SRC, 'json-schema') as any;
+		expect(out.additionalProperties).toBe(false);
+		expect(out.required).toEqual(['mode']);
+	});
+
+	it('still strips editor-only annotations in both dialects', () => {
+		expect((sanitizeSchema(SRC, 'json-schema') as any).properties.mode.enumDescriptions).toBeUndefined();
+		expect((sanitizeSchema(SRC, 'gemini') as any).properties.mode.enumDescriptions).toBeUndefined();
+	});
+
+	it('leaves draft 2020-12 composition alone rather than collapsing it', () => {
+		const out = sanitizeSchema({ oneOf: [{ type: 'string' }, { type: 'number' }] }, 'json-schema') as any;
+		expect(out.oneOf).toHaveLength(2);
+		expect(out.anyOf).toBeUndefined();
+	});
+
+	it('defaults to the Gemini dialect when none is named', () => {
+		expect((sanitizeSchema({ type: 'string' }) as any).type).toBe('STRING');
+	});
+});
+
+describe('sanitizeSchema — property names are not keywords', () => {
+	it('keeps a property genuinely named after a stripped keyword', () => {
+		// A tool with a "tags" or "scope" parameter must not lose it just because those
+		// words also appear in VS Code's annotation vocabulary.
+		const out = sanitizeSchema(
+			{
+				type: 'object',
+				properties: {
+					tags: { type: 'array', items: { type: 'string' } },
+					scope: { type: 'string' },
+					order: { type: 'integer' },
+					errorMessage: { type: 'string' },
+				},
+			},
+			'json-schema',
+		) as any;
+
+		expect(Object.keys(out.properties)).toEqual(['tags', 'scope', 'order', 'errorMessage']);
+		expect(out.properties.tags.items.type).toBe('string');
+	});
+
+	it('still strips those words when they appear as keywords', () => {
+		const out = sanitizeSchema(
+			{ type: 'string', scope: 'resource', order: 3, tags: ['x'] },
+			'json-schema',
+		) as any;
+		expect(out).toEqual({ type: 'string' });
+	});
+
+	it('keeps $defs entries addressable for $ref', () => {
+		const out = sanitizeSchema(
+			{ $ref: '#/$defs/order', $defs: { order: { type: 'object', properties: { id: { type: 'string' } } } } },
+			'json-schema',
+		) as any;
+		expect(out.$ref).toBe('#/$defs/order');
+		expect(out.$defs.order.properties.id.type).toBe('string');
+	});
+});

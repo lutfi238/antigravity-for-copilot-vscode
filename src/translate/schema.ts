@@ -5,6 +5,78 @@
  */
 
 /**
+ * Which validator the schema has to satisfy.
+ *
+ * The gateway speaks Gemini's wire format for every model, but it does not validate
+ * tool schemas itself for every model. Gemini requests go to a protobuf validator that
+ * wants uppercase type enums; Claude requests are forwarded to Anthropic, which
+ * validates against real JSON Schema draft 2020-12 and rejects those same uppercase
+ * types outright. One output cannot satisfy both.
+ */
+export type SchemaDialect = 'gemini' | 'json-schema';
+
+/**
+ * Annotation keywords VS Code and MCP servers attach that mean nothing to either
+ * validator. Legal in JSON Schema — unknown keywords are allowed — but dropped to keep
+ * the payload to what actually describes the tool.
+ */
+/** Keys inside these objects are property names, not keywords, and are never filtered. */
+const NAME_KEYED_CONTAINERS = new Set(['properties', 'patternProperties', '$defs', 'definitions']);
+
+const NON_STANDARD_KEYWORDS = new Set([
+	'enumDescriptions',
+	'markdownDescription',
+	'markdownEnumDescriptions',
+	'deprecationMessage',
+	'defaultSnippets',
+	'patternErrorMessage',
+	'errorMessage',
+	'editPresentation',
+	'scope',
+	'order',
+	'tags',
+	'doNotSuggest',
+]);
+
+/**
+ * Draft 2020-12 output: keep the schema as authored, minus the editor-only annotations.
+ * Types stay lowercase — uppercasing them is exactly what Anthropic rejects.
+ */
+function sanitizeForJsonSchema(schema: unknown): unknown {
+	if (Array.isArray(schema)) {
+		return schema.map(sanitizeForJsonSchema);
+	}
+	if (schema === null || typeof schema !== 'object') {
+		return schema;
+	}
+
+	const out: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
+		// Inside these, the keys are author-chosen names, not schema keywords. Filtering
+		// them by keyword would silently delete a property genuinely called "tags" or
+		// "scope" and change the tool's contract.
+		if (NAME_KEYED_CONTAINERS.has(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+			const mapped: Record<string, unknown> = {};
+			for (const [name, sub] of Object.entries(value as Record<string, unknown>)) {
+				mapped[name] = sanitizeForJsonSchema(sub);
+			}
+			out[key] = mapped;
+			continue;
+		}
+		if (NON_STANDARD_KEYWORDS.has(key)) {
+			continue;
+		}
+		out[key] = sanitizeForJsonSchema(value);
+	}
+	return out;
+}
+
+/** Rewrites a tool schema into whatever the model's validator will accept. */
+export function sanitizeSchema(schema: unknown, dialect: SchemaDialect = 'gemini'): unknown {
+	return dialect === 'json-schema' ? sanitizeForJsonSchema(schema) : sanitizeForGemini(schema);
+}
+
+/**
  * The complete set of fields the gateway's `Schema` proto defines.
  *
  * This is an ALLOWLIST, not a denylist, and that distinction is the whole point.
@@ -49,9 +121,9 @@ const VALID_TYPES = new Set(['STRING', 'NUMBER', 'INTEGER', 'BOOLEAN', 'ARRAY', 
  * `enum: [X]`, which is the documented substitution, and `oneOf`/`allOf` collapse into
  * `anyOf`, which is the only composition keyword supported.
  */
-export function sanitizeSchema(schema: unknown): unknown {
+function sanitizeForGemini(schema: unknown): unknown {
 	if (Array.isArray(schema)) {
-		return schema.map(sanitizeSchema);
+			return schema.map(sanitizeForGemini);
 	}
 	if (schema === null || typeof schema !== 'object') {
 		return schema;
@@ -68,7 +140,7 @@ export function sanitizeSchema(schema: unknown): unknown {
 		}
 		if (key === 'oneOf' || key === 'allOf') {
 			if (Array.isArray(value) && value.length > 0) {
-				output.anyOf = value.map(sanitizeSchema);
+				output.anyOf = value.map(sanitizeForGemini);
 			}
 			continue;
 		}
@@ -103,7 +175,7 @@ export function sanitizeSchema(schema: unknown): unknown {
 		if (key === 'properties' && value && typeof value === 'object') {
 			const properties: Record<string, unknown> = {};
 			for (const [name, sub] of Object.entries(value as Record<string, unknown>)) {
-				properties[name] = sanitizeSchema(sub);
+				properties[name] = sanitizeForGemini(sub);
 			}
 			output.properties = properties;
 			continue;
@@ -114,7 +186,7 @@ export function sanitizeSchema(schema: unknown): unknown {
 			}
 			continue;
 		}
-		output[key] = sanitizeSchema(value);
+		output[key] = sanitizeForGemini(value);
 	}
 
 	// The validator wants an explicit type; infer it from whatever survived.

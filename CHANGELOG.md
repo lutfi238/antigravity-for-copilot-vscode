@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.0
+
+- Fix Claude and GPT-OSS failing every request with "input_schema: JSON schema is
+  invalid. It must match JSON Schema draft 2020-12". The gateway speaks Gemini wire
+  format for all models but does not validate tool schemas itself: Gemini goes to a
+  protobuf validator that demands uppercase type enums, while Claude is forwarded to
+  Anthropic, which requires real JSON Schema and rejects those same uppercase types.
+  Schemas are now sanitized per model family.
+- Property names are no longer filtered as if they were keywords, so a tool parameter
+  called `tags`, `scope` or `order` survives.
+
 ## 0.9.0
 
 - Fix the Thinking Effort control never taking effect. VS Code delivers the model
