@@ -58,8 +58,31 @@ function describe(status: number, body: string): string {
 function extractMessage(body: string): string {
 	try {
 		const parsed = JSON.parse(body);
-		const message = parsed?.error?.message ?? parsed?.[0]?.error?.message;
-		if (typeof message === 'string') {
+		const error = parsed?.error ?? parsed?.[0]?.error;
+		const message = typeof error?.message === 'string' ? error.message : undefined;
+
+		// "Request contains an invalid argument." on its own names nothing. The field
+		// that actually failed is in `details`, so fold it into the message.
+		const details = Array.isArray(error?.details)
+			? error.details
+					.map((detail: Record<string, unknown>) => {
+						const violations = (detail as { fieldViolations?: Array<{ field?: string; description?: string }> })
+							.fieldViolations;
+						if (Array.isArray(violations)) {
+							return violations
+								.map((v) => [v.field, v.description].filter(Boolean).join(': '))
+								.join('; ');
+						}
+						return typeof detail?.detail === 'string' ? detail.detail : '';
+					})
+					.filter(Boolean)
+					.join(' | ')
+			: '';
+
+		if (message && details) {
+			return `${message} ${details}`;
+		}
+		if (message) {
 			return message;
 		}
 	} catch {

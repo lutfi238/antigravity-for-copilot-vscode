@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { GatewayClient } from './api/client';
-import { toLanguageModelError } from './api/errors';
+import { GatewayError, toLanguageModelError } from './api/errors';
 import {
 	Catalog,
 	collapseTiers,
@@ -252,7 +252,12 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				log.info(op, 'chat cancelled');
 				return;
 			}
-			log.error(op, 'chat failed', { error });
+			if (error instanceof GatewayError) {
+				// The message can be generic; the body is what actually names the field.
+				log.error(op, 'chat failed', { status: error.status, body: error.body.slice(0, 1500) });
+			} else {
+				log.error(op, 'chat failed', { error });
+			}
 			throw toLanguageModelError(error);
 		} finally {
 			cancelSub.dispose();
