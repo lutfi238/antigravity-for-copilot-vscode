@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-  "version": "0.12.2",
+  "version": "0.12.3",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -118,10 +118,10 @@
           ],
           "default": "latest",
           "markdownEnumDescriptions": [
-            "Only the newest generation of each Gemini line, de-duplicated, with internal Tab/Chat/image/tiered models removed.",
-            "Every model the gateway reports, including old generations and duplicates."
+            "What Antigravity itself offers: every Gemini 3 generation of Flash and Pro, plus Claude and GPT-OSS. Older Gemini, Flash Lite and internal Tab/Chat/image/tiered models are removed.",
+            "Every model the gateway reports, including older generations and duplicates."
           ],
-          "markdownDescription": "Which discovered models to offer in the picker. Antigravity lists several generations of each line plus internal aliases; `latest` trims that to what is worth using."
+          "markdownDescription": "Which discovered models to offer in the picker. Discovery returns everything the backend can route to, including internal aliases; `latest` narrows it to the published model list, and new generations appear on their own."
         },
         "antigravity.effortSelection": {
           "type": "string",
@@ -131,7 +131,7 @@
           ],
           "default": "setting",
           "markdownEnumDescriptions": [
-            "One picker entry per effort tier, e.g. Gemini 3.7 Flash (High) / (Medium) / (Low).",
+            "One picker entry per effort tier, e.g. Gemini 3.8 Flash (High) / (Medium) / (Low).",
             "One entry per model, with a **Thinking Effort** control beside it in the picker. Falls back to `#antigravity.reasoningEffort#` when nothing is selected."
           ],
           "markdownDescription": "How model effort tiers are presented. Antigravity addresses each tier as a separate model id; `setting` folds them into one entry with an effort control next to the model, the way Copilot's own models work."

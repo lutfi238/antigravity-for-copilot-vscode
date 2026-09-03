@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.3
+
+- Correct the settings descriptions, which still described the superseded
+  "newest generation only" rule.
+
 ## 0.12.2
 
 - Log which models the picker ended up offering, by id. A count alone cannot tell you
