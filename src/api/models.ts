@@ -83,6 +83,9 @@ interface FetchAvailableModelEntry {
  * actually the middle one. Renaming them to look tidy would 404.
  */
 export const FALLBACK_MODELS: ModelSpec[] = [
+	spec('gemini-3.8-flash-high', 'Gemini 3.8 Flash (High)'),
+	spec('gemini-3.8-flash-medium', 'Gemini 3.8 Flash (Medium)'),
+	spec('gemini-3.8-flash-low', 'Gemini 3.8 Flash (Low)'),
 	spec('gemini-3.7-flash-high', 'Gemini 3.7 Flash (High)'),
 	spec('gemini-3.7-flash-medium', 'Gemini 3.7 Flash (Medium)'),
 	spec('gemini-3.7-flash-low', 'Gemini 3.7 Flash (Low)'),

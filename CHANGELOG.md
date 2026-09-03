@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.1
+
+- Fix Gemini 3.8 Flash still missing at runtime after 0.13.0: follow Antigravity CLI
+  1.1.25 by discovering models from the daily gateway before the stale production
+  catalogue, update the CLI fingerprint, and include all three 3.8 effort tiers in the
+  offline fallback roster.
+
 ## 0.13.0
 
 - Track Antigravity published model list as a rolling window rather than a floor. The

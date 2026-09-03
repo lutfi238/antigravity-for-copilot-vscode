@@ -7,6 +7,7 @@ import {
 	resolveTier,
 	FALLBACK_MODELS,
 } from '../src/api/models';
+import { DISCOVERY_ENDPOINTS, ENDPOINT_DAILY, ENDPOINT_PROD } from '../src/api/constants';
 
 /** Stands in for GatewayClient, returning whatever the gateway is pretending to send. */
 function clientReturning(payload: unknown) {
@@ -18,6 +19,21 @@ function clientThrowing(error: Error) {
 }
 
 describe('fetchCatalog', () => {
+	it('asks the daily host first so a successful stale prod catalog cannot hide new models', async () => {
+		const client = clientReturning({
+			models: {
+				'gemini-3.8-flash-high': { displayName: 'Gemini 3.8 Flash (High)' },
+			},
+		});
+
+		await fetchCatalog(client, 'op', 'proj');
+
+		expect(client.postJson).toHaveBeenCalledWith(
+			expect.objectContaining({ endpoints: [ENDPOINT_DAILY, ENDPOINT_PROD] }),
+		);
+		expect(DISCOVERY_ENDPOINTS).toEqual([ENDPOINT_DAILY, ENDPOINT_PROD]);
+	});
+
 	it('parses the model MAP the gateway actually returns', async () => {
 		// This is the shape that matters: `models` is keyed by model id, not an array.
 		// Treating it as an array yields an empty picker and no quota — indistinguishable
@@ -91,6 +107,7 @@ describe('fetchCatalog', () => {
 		const catalog = await fetchCatalog(clientThrowing(new Error('403')), 'op', 'proj');
 		expect(catalog.isFallback).toBe(true);
 		expect(catalog.models).toEqual(FALLBACK_MODELS);
+		expect(catalog.models.map((model) => model.id)).toContain('gemini-3.8-flash-high');
 	});
 
 	it('falls back when the gateway returns an empty model map', async () => {

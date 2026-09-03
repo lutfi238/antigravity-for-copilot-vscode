@@ -36,13 +36,13 @@ export const ENDPOINT_PROD = 'https://cloudcode-pa.googleapis.com';
 /** Generation traffic: daily first, prod as backup. Autopush is no longer served. */
 export const GENERATION_ENDPOINTS = [ENDPOINT_DAILY, ENDPOINT_PROD] as const;
 
-/** Project discovery and model listing. */
-export const DISCOVERY_ENDPOINTS = [ENDPOINT_PROD, ENDPOINT_DAILY] as const;
+/** Project and model discovery. The current CLI uses daily; prod is a stale fallback. */
+export const DISCOVERY_ENDPOINTS = [ENDPOINT_DAILY, ENDPOINT_PROD] as const;
 
 /** Used when the gateway returns no project (e.g. Workspace accounts). */
 export const FALLBACK_PROJECT_ID = 'rising-fact-p41fc';
 
-const AGY_CLI_VERSION = '1.1.13';
+const AGY_CLI_VERSION = '1.1.25';
 const AGY_CLI_CHANGE_LIST = '964361259';
 
 /**

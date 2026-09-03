@@ -42,7 +42,7 @@ rotation. Signing out removes only this extension's copy.
 
 Discovery returns every model the backend can route to, including inline-autocomplete models
 (`Tab_*`), internal numeric aliases (`Chat_20706`), server-side routing aliases (`*tiered*`),
-image models, duplicate display names, and every past generation — 27 entries in practice.
+image models, duplicate display names, and past generations — dozens of entries in practice.
 
 The default `latest` narrows that to Antigravity own published list: the three newest
 Gemini generations of each line, plus Claude and GPT-OSS. That list is a rolling window
