@@ -44,9 +44,11 @@ Discovery returns every model the backend can route to, including inline-autocom
 (`Tab_*`), internal numeric aliases (`Chat_20706`), server-side routing aliases (`*tiered*`),
 image models, duplicate display names, and every past generation — 27 entries in practice.
 
-The default `latest` narrows that to what Antigravity itself offers as a choice: every
-Gemini 3 generation of Flash and Pro, plus Claude and GPT-OSS. Older Gemini and Flash
-Lite are excluded — the backend can route to them, but Antigravity does not list them.
+The default `latest` narrows that to Antigravity own published list: the three newest
+Gemini generations of each line, plus Claude and GPT-OSS. That list is a rolling window
+rather than a fixed set — it showed 3.5/3.6/3.7 Flash, then 3.6/3.7/3.8 once 3.8
+shipped — so the window is encoded instead of the members, and a new generation appears
+while an obsolete one leaves on its own. Older Gemini and Flash Lite are excluded.
 
 Set `antigravity.modelSelection` to `all` to see everything the backend can route to, or
 list ids in `antigravity.hiddenModels` to remove specific entries.

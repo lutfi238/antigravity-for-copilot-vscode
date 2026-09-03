@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0
+
+- Track Antigravity published model list as a rolling window rather than a floor. The
+  list showed 3.5/3.6/3.7 Flash, then 3.6/3.7/3.8 once 3.8 shipped: three generations
+  per line, oldest retiring as a new one lands. Encoding the window means Gemini 3.8
+  Flash appears and 3.5 leaves without a code change, and the same will hold for 3.9.
+
+
 ## 0.12.3
 
 - Correct the settings descriptions, which still described the superseded

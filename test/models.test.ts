@@ -352,3 +352,62 @@ describe('spec — output limits', () => {
 		expect(spec('gemini-3.1-flash-image', 'x').maxOutputTokens).toBe(33_000);
 	});
 });
+
+/**
+ * Antigravity's published list is a rolling window, not a fixed set: it showed
+ * 3.5/3.6/3.7 Flash, then 3.6/3.7/3.8 once 3.8 shipped. Both states are pinned here so
+ * the rule keeps tracking the list on its own.
+ */
+describe('curateModels — rolling generation window', () => {
+	const flash = (v: string) =>
+		(['high', 'medium', 'low'] as const).map((t) => spec(`gemini-${v}-flash-${t}`, `Gemini ${v} Flash (${t[0].toUpperCase()}${t.slice(1)})`));
+	const base = [
+		spec('gemini-pro-agent', 'Gemini 3.1 Pro (High)'),
+		spec('gemini-3.1-pro-low', 'Gemini 3.1 Pro (Low)'),
+		spec('claude-sonnet-4-6', 'Claude Sonnet 4.6 (Thinking)'),
+		spec('claude-opus-4-6-thinking', 'Claude Opus 4.6 (Thinking)'),
+		spec('gpt-oss-120b-medium', 'GPT-OSS 120B (Medium)'),
+		spec('gemini-2.5-pro', 'Gemini 2.5 Pro'),
+		spec('g1', 'Gemini 3.1 Flash Lite'),
+	];
+
+	const lines = (models: ReturnType<typeof spec>[]) =>
+		[...new Set(curateModels(models, false).map((m) => m.name.replace(/\s*\(.*\)$/, '')))].sort();
+
+	it('matched the list before 3.8 shipped', () => {
+		const out = lines([...base, ...flash('3.5'), ...flash('3.6'), ...flash('3.7')]);
+		expect(out).toEqual([
+			'Claude Opus 4.6',
+			'Claude Sonnet 4.6',
+			'GPT-OSS 120B',
+			'Gemini 3.1 Pro',
+			'Gemini 3.5 Flash',
+			'Gemini 3.6 Flash',
+			'Gemini 3.7 Flash',
+		]);
+	});
+
+	it('matches the list now that 3.8 shipped, retiring 3.5 on its own', () => {
+		const out = lines([...base, ...flash('3.5'), ...flash('3.6'), ...flash('3.7'), ...flash('3.8')]);
+		expect(out).toEqual([
+			'Claude Opus 4.6',
+			'Claude Sonnet 4.6',
+			'GPT-OSS 120B',
+			'Gemini 3.1 Pro',
+			'Gemini 3.6 Flash',
+			'Gemini 3.7 Flash',
+			'Gemini 3.8 Flash',
+		]);
+	});
+
+	it('will retire 3.6 when a 3.9 arrives, with no code change', () => {
+		const out = lines([...base, ...flash('3.6'), ...flash('3.7'), ...flash('3.8'), ...flash('3.9')]);
+		expect(out).toContain('Gemini 3.9 Flash');
+		expect(out).not.toContain('Gemini 3.6 Flash');
+	});
+
+	it('keeps a line with fewer than three generations intact', () => {
+		// Pro only ever had 3.1; a window must not require three to keep any.
+		expect(lines(base)).toContain('Gemini 3.1 Pro');
+	});
+});

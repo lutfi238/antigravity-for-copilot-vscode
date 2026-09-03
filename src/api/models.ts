@@ -153,6 +153,9 @@ const NON_CHAT = /^tab[_-]|^chat[_-]?\d+$|tiered|image/i;
 /** Antigravity lists no Gemini older than 3, so neither do we. */
 const MIN_GEMINI_GENERATION = 3;
 
+/** How many generations of a line Antigravity keeps on offer at once. */
+const GENERATION_WINDOW = 3;
+
 interface GeminiLine {
 	line: string;
 	version: number;
@@ -213,18 +216,41 @@ export function curateModels(models: ModelSpec[], keepAllGenerations: boolean): 
 		return deduped;
 	}
 
-	// Match Antigravity's own model list rather than inferring one. It offers every
-	// Gemini 3 generation side by side — 3.5, 3.6 and 3.7 Flash are three separate
-	// choices there, not a ladder where the newest wins — alongside Claude and GPT-OSS.
-	// What it never offers: anything older than Gemini 3, and Flash Lite, a line of its
-	// own that the backend can route to but Antigravity does not present.
-	return deduped.filter((model) => {
+	// Match Antigravity's published model list without hardcoding it, because that list
+	// moves: it showed 3.5/3.6/3.7 Flash, then 3.6/3.7/3.8 when 3.8 landed. The shape
+	// that held across both is a rolling window — the newest few generations of each
+	// line, with the oldest retiring as a new one arrives. Encoding the window rather
+	// than the members means a new generation appears and an obsolete one leaves on
+	// their own.
+	const eligible = deduped.filter((model) => {
 		const parsed = parseGeminiLine(model.id, model.name);
 		// Claude and GPT-OSS have no generation ladder and are always offered.
 		if (!parsed) {
 			return true;
 		}
+		// Flash Lite is a line of its own that Antigravity never presents as a choice.
 		return parsed.line !== 'flash-lite' && parsed.version >= MIN_GEMINI_GENERATION;
+	});
+
+	// Per line, keep only the newest few versions.
+	const kept = new Map<string, Set<number>>();
+	for (const model of eligible) {
+		const parsed = parseGeminiLine(model.id, model.name);
+		if (!parsed) {
+			continue;
+		}
+		const versions = kept.get(parsed.line) ?? new Set<number>();
+		versions.add(parsed.version);
+		kept.set(parsed.line, versions);
+	}
+	for (const [line, versions] of kept) {
+		const newest = [...versions].sort((a, b) => b - a).slice(0, GENERATION_WINDOW);
+		kept.set(line, new Set(newest));
+	}
+
+	return eligible.filter((model) => {
+		const parsed = parseGeminiLine(model.id, model.name);
+		return !parsed || kept.get(parsed.line)?.has(parsed.version) === true;
 	});
 }
 

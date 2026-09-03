@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-  "version": "0.12.3",
+  "version": "0.13.0",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -118,7 +118,7 @@
           ],
           "default": "latest",
           "markdownEnumDescriptions": [
-            "What Antigravity itself offers: every Gemini 3 generation of Flash and Pro, plus Claude and GPT-OSS. Older Gemini, Flash Lite and internal Tab/Chat/image/tiered models are removed.",
+            "Antigravity own published list: the three newest Gemini generations of each line, plus Claude and GPT-OSS. Older Gemini, Flash Lite and internal Tab/Chat/image/tiered models are removed.",
             "Every model the gateway reports, including older generations and duplicates."
           ],
           "markdownDescription": "Which discovered models to offer in the picker. Discovery returns everything the backend can route to, including internal aliases; `latest` narrows it to the published model list, and new generations appear on their own."
