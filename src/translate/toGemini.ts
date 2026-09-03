@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ModelSpec } from '../api/models';
 import { emptySchema, sanitizeSchema, ToolNameMap } from './schema';
 import { applyThinking, ReasoningEffort, SignatureCache, textKey } from './thinking';
-import { GeminiContent, GeminiGenerationConfig, GeminiPart, GeminiRequest, GeminiTool } from './types';
+import { GeminiContent, GeminiGenerationConfig, GeminiPart, GeminiRequest, GeminiTool, USAGE_DATA_PART_MIME } from './types';
 
 export interface BuildOptions {
 	model: ModelSpec;
@@ -105,6 +105,11 @@ function buildContents(
 					},
 				});
 			} else if (item instanceof vscode.LanguageModelDataPart) {
+				// This is response metadata for VS Code's context widget, not model input.
+				// Replaying it as inlineData would send an internal JSON blob to Gemini.
+				if (item.mimeType.toLowerCase() === USAGE_DATA_PART_MIME) {
+					continue;
+				}
 				parts.push({
 					inlineData: {
 						mimeType: item.mimeType,
@@ -146,6 +151,9 @@ function flattenToolResult(content: ReadonlyArray<unknown>): string {
 		if (item instanceof vscode.LanguageModelTextPart) {
 			chunks.push(item.value);
 		} else if (item instanceof vscode.LanguageModelDataPart) {
+			if (item.mimeType.toLowerCase() === USAGE_DATA_PART_MIME) {
+				continue;
+			}
 			if (item.mimeType.startsWith('text/') || item.mimeType.includes('json')) {
 				chunks.push(Buffer.from(item.data).toString('utf8'));
 			} else {

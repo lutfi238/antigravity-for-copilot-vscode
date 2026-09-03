@@ -23,7 +23,7 @@ import { ProjectResolver } from './auth/project';
 import { config } from './config';
 import { log, newOperationId } from './log';
 import { buildRequest } from './translate/toGemini';
-import { emitChunk, finishNote, newEmitState } from './translate/fromGemini';
+import { createUsageDataPart, emitChunk, finishNote, newEmitState } from './translate/fromGemini';
 import { SignatureCache } from './translate/thinking';
 import { GenerateContentResponse } from './translate/types';
 import { buildAgentMetadata, buildEnvelope, createSession, orderRequestFields } from './api/agent-metadata';
@@ -245,6 +245,15 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			const note = finishNote(state.finishReason);
 			if (note) {
 				progress.report(new vscode.LanguageModelTextPart(note));
+			}
+
+			// VS Code's context-window widget learns the actual prompt size from this
+			// private usage part. Keep it out of cancelled/partial responses.
+			if (!token.isCancellationRequested) {
+				const usagePart = createUsageDataPart(state.usage);
+				if (usagePart) {
+					progress.report(usagePart);
+				}
 			}
 
 			log.info(op, 'chat complete', {

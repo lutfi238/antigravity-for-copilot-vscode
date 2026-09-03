@@ -9,10 +9,11 @@
 - `envelope.test.ts` covers session metadata, request ids, FNV-1a values, field order, and outer envelopes.
 - `constants.test.ts` covers the Antigravity CLI fingerprint used in gateway headers.
 - `modelinfo.test.ts` covers picker configuration schemas and effort-source resolution.
+- `provider.test.ts` covers the provider response seam, including SSE consumption and usage-part forwarding.
 - `models.test.ts` covers discovery parsing, curation, tier collapsing/resolution, quota groups, and fallback models.
 - `schema.test.ts` covers schema normalization and tool-name sanitization/mapping.
 - `stream.test.ts` covers SSE framing and parsing.
-- `translate.test.ts` covers outgoing/incoming translation, tool calls/results, images, signatures, thinking, and finish behavior.
+- `translate.test.ts` covers outgoing/incoming translation, tool calls/results, images, signatures, thinking, usage reporting, and finish behavior.
 - `vscode-stub.ts` supplies the runtime classes/enums required by Vitest; `vitest.config.ts` aliases `vscode` to it.
 
 ## Local Contracts

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 import { ModelSpec } from '../src/api/models';
 import { buildRequest } from '../src/translate/toGemini';
-import { emitChunk, newEmitState } from '../src/translate/fromGemini';
+import { createUsageDataPart, emitChunk, newEmitState } from '../src/translate/fromGemini';
 import { SignatureCache } from '../src/translate/thinking';
 import { ToolNameMap } from '../src/translate/schema';
 import { GenerateContentResponse } from '../src/translate/types';
@@ -308,6 +308,67 @@ describe('emitChunk', () => {
 		);
 		expect(h.state.finishReason).toBe('MAX_TOKENS');
 		expect(h.state.usage?.promptTokenCount).toBe(10);
+	});
+
+	it('serializes gateway usage as the VS Code usage data part', () => {
+		const part = createUsageDataPart({
+			promptTokenCount: 42_400,
+			candidatesTokenCount: 1_200,
+			thoughtsTokenCount: 300,
+			totalTokenCount: 43_900,
+			cachedContentTokenCount: 4_000,
+		});
+
+		expect(part).toBeInstanceOf(vscode.LanguageModelDataPart);
+		expect(part?.mimeType).toBe('usage');
+		expect(JSON.parse(Buffer.from(part!.data).toString('utf8'))).toEqual({
+			prompt_tokens: 42_400,
+			completion_tokens: 1_500,
+			total_tokens: 43_900,
+			prompt_tokens_details: { cached_tokens: 4_000 },
+			completion_tokens_details: { reasoning_tokens: 300 },
+		});
+	});
+
+	it('keeps usage fields when the gateway fills them across stream chunks', () => {
+		const h = harness();
+		emitChunk(
+			{ response: { usageMetadata: { promptTokenCount: 42_400 } } } as GenerateContentResponse,
+			h.context,
+			h.state,
+		);
+		emitChunk(
+			{
+				response: {
+					usageMetadata: {
+						candidatesTokenCount: 1_200,
+						thoughtsTokenCount: 300,
+						totalTokenCount: 43_900,
+					},
+				},
+			} as GenerateContentResponse,
+			h.context,
+			h.state,
+		);
+
+		const part = createUsageDataPart(h.state.usage);
+		expect(JSON.parse(Buffer.from(part!.data).toString('utf8'))).toMatchObject({
+			prompt_tokens: 42_400,
+			completion_tokens: 1_500,
+			total_tokens: 43_900,
+		});
+	});
+});
+
+describe('internal usage replay', () => {
+	it('does not send the usage data part back to Gemini as inline data', () => {
+		const usage = new vscode.LanguageModelDataPart(
+			new TextEncoder().encode(JSON.stringify({ prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 })),
+			'usage',
+		);
+		const { request } = build([assistantMessage(usage)]);
+
+		expect(request.contents).toEqual([]);
 	});
 });
 

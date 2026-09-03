@@ -19,6 +19,8 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Automatic model discovery** with a curated default, so the picker shows what Antigravity offers rather than every internal alias — new generations appear on their own.
 - **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator.
 - **Native reasoning display** — the model's thinking appears in Copilot Chat's own collapsible block.
+- **Context usage reporting** — completed gateway token usage feeds VS Code's Context Window
+  widget, including its prompt breakdown when the installed VS Code build supports it.
 - **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
 - **Separate quota buckets** in the status bar: Gemini Pro, Gemini Flash, and Claude/GPT refill on different clocks.
 - **Thinking Effort control** in the picker, next to the model, offering only the tiers the backend can serve.
@@ -91,6 +93,15 @@ fallbacks can be traced.
 
 Logs exclude prompts, reasoning, tool arguments and results, credentials and tokens — keeping
 only counts, sizes, transport decisions and redacted error text.
+
+### Context window
+
+After a completed response, the extension passes the gateway's prompt, completion, cached,
+and reasoning token counts to VS Code through its internal `usage` response part. This changes
+the context indicator from `0` to the actual reported usage. VS Code 1.120 and newer can then
+render the same prompt breakdown used by native providers (system instructions, tool
+definitions, messages, and tool results); older builds may continue to show only the response
+stream.
 
 ## Configuration
 

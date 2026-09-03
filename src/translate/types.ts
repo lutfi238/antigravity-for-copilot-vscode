@@ -1,5 +1,8 @@
 /** Gemini-shaped wire types. The gateway speaks this dialect for every model family. */
 
+/** Reserved VS Code response-part MIME type for provider-reported token usage. */
+export const USAGE_DATA_PART_MIME = 'usage';
+
 export interface GeminiPart {
 	text?: string;
 	/** Marks reasoning output rather than answer text. */
@@ -65,6 +68,7 @@ export interface GeminiCandidate {
 
 export interface GeminiUsage {
 	promptTokenCount?: number;
+	cachedContentTokenCount?: number;
 	candidatesTokenCount?: number;
 	thoughtsTokenCount?: number;
 	totalTokenCount?: number;

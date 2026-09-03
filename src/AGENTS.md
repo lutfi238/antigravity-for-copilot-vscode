@@ -23,6 +23,7 @@
 
 - Keep `provider.ts` focused on orchestration; place domain rules in the owning child module.
 - Use one operation id across each logical discovery, authentication, or generation flow so fallback and retry logs correlate.
+- Keep provider response completion responsible for forwarding gateway usage metadata to VS Code's context-window accounting.
 
 ## Verification
 

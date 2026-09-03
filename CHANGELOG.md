@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.2
+
+- Report completed Gemini/Antigravity token usage to VS Code's Context Window widget, matching
+  the usage data-part contract used by native providers such as Codex.
+- Ignore that internal usage metadata when replaying conversation history to the gateway.
+
 ## 0.13.1
 
 - Fix Gemini 3.8 Flash still missing at runtime after 0.13.0: follow Antigravity CLI

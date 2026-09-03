@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ToolNameMap } from './schema';
 import { SignatureCache, textKey } from './thinking';
-import { GeminiCandidate, GeminiPart, GeminiUsage, GenerateContentResponse } from './types';
+import { GeminiCandidate, GeminiPart, GeminiUsage, GenerateContentResponse, USAGE_DATA_PART_MIME } from './types';
 
 /**
  * VS Code ships `LanguageModelThinkingPart` at runtime but does not declare it in
@@ -77,6 +77,48 @@ export function usageOf(chunk: GenerateContentResponse): GeminiUsage | undefined
 }
 
 /**
+ * Converts gateway usage metadata into the private VS Code usage part.
+ *
+ * VS Code's context-window widget consumes a `LanguageModelDataPart` with the
+ * reserved `usage` MIME type. The wire gateway uses camelCase Gemini names, while
+ * the VS Code/Chat usage contract uses the OpenAI-shaped snake_case names below.
+ */
+
+export function createUsageDataPart(usage: GeminiUsage | undefined): vscode.LanguageModelDataPart | undefined {
+	if (!usage) {
+		return undefined;
+	}
+
+	const promptTokens = nonNegative(usage.promptTokenCount);
+	// Gemini reports visible candidates and thinking tokens separately. Both count
+	// against the context window, so expose their sum as completion_tokens, matching
+	// VS Code's native Gemini provider.
+	const completionTokens = nonNegative(usage.candidatesTokenCount) + nonNegative(usage.thoughtsTokenCount);
+	const totalTokens = nonNegative(usage.totalTokenCount ?? promptTokens + completionTokens);
+
+	return new vscode.LanguageModelDataPart(
+		new TextEncoder().encode(
+			JSON.stringify({
+				prompt_tokens: promptTokens,
+				completion_tokens: completionTokens,
+				total_tokens: totalTokens,
+				prompt_tokens_details: {
+					cached_tokens: nonNegative(usage.cachedContentTokenCount),
+				},
+				completion_tokens_details: {
+					reasoning_tokens: nonNegative(usage.thoughtsTokenCount),
+				},
+			}),
+		),
+		USAGE_DATA_PART_MIME,
+	);
+}
+
+function nonNegative(value: number | undefined): number {
+	return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+/**
  * Converts one streamed chunk into VS Code response parts.
  *
  * Thought signatures are captured here rather than at the end of the stream because a
@@ -86,7 +128,9 @@ export function usageOf(chunk: GenerateContentResponse): GeminiUsage | undefined
 export function emitChunk(chunk: GenerateContentResponse, context: EmitContext, state: EmitState): void {
 	const usage = usageOf(chunk);
 	if (usage) {
-		state.usage = usage;
+		// Streaming gateways may send an initial zero-valued usage object and fill in
+		// fields on a later chunk. Keep the fields already observed.
+		state.usage = { ...state.usage, ...usage };
 	}
 
 	for (const candidate of candidatesOf(chunk)) {

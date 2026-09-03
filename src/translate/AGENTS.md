@@ -7,10 +7,10 @@
 ## Ownership
 
 - `toGemini.ts` converts ordered messages, tools, results, images, model options, and reasoning settings into requests.
-- `fromGemini.ts` converts streamed candidates into VS Code text, thinking, and tool-call parts while recording signatures and usage.
+- `fromGemini.ts` converts streamed candidates into VS Code text, thinking, tool-call, and private usage parts while recording signatures and usage.
 - `schema.ts` normalizes tool schemas and maintains reversible tool-name mappings.
 - `thinking.ts` owns model-specific reasoning configuration and the bounded in-memory thought-signature cache.
-- `types.ts` defines the minimal wire shapes shared by translation and API code.
+- `types.ts` defines the minimal wire shapes and shared response-part MIME contract used by translation and API code.
 
 ## Local Contracts
 
@@ -21,6 +21,8 @@
 - Replay Gemini thought signatures across turns. VS Code history cannot store them, so cache by tool call id or stable assistant-text key.
 - Gemini reasoning effort comes from the tiered model id; only numeric-budget models receive `thinkingBudget`, which must stay strictly below `maxOutputTokens`.
 - Prefer native `LanguageModelThinkingPart` when present at runtime and retain the text-blockquote fallback.
+- Report completed gateway usage as a `LanguageModelDataPart` with MIME type `usage` and OpenAI-shaped snake_case fields so VS Code's context-window widget can display real usage. Never replay that internal part to Gemini.
+- Count Gemini visible candidates and `thoughtsTokenCount` together as completion usage because both consume the context window.
 
 ## Work Guidance
 
