@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.2
+
+- Log which models the picker ended up offering, by id. A count alone cannot tell you
+  which entry is the unexpected one.
+- Refresh the README for Gemini 3.8 Flash, which the generation floor already picks up
+  without a code change.
+
+
 ## 0.12.1
 
 - Keep every Gemini 3 Flash generation. Antigravity lists 3.5, 3.6 and 3.7 Flash as

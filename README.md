@@ -5,7 +5,7 @@ A lightweight VS Code Language Model Provider for the Google Antigravity backend
 [![Install](https://img.shields.io/badge/VS_Code-Install-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=lutfi.antigravity-for-copilot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Pick **Gemini 3.7 Flash**, **Gemini 3.1 Pro**, **Claude Sonnet 4.6**, **Claude Opus 4.6** or
+Pick **Gemini 3.8 Flash**, **Gemini 3.1 Pro**, **Claude Sonnet 4.6**, **Claude Opus 4.6** or
 **GPT-OSS 120B** from the standard model picker and keep using native chat and Agent mode.
 Requests run on your Antigravity account rather than Copilot premium requests.
 
@@ -16,7 +16,7 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 ## Highlights
 
 - **Native integration** — the models appear in the standard model picker, in Chat and Agent mode.
-- **Automatic model discovery** with a curated default, so the picker shows the newest generation of each line instead of every internal alias.
+- **Automatic model discovery** with a curated default, so the picker shows what Antigravity offers rather than every internal alias — new generations appear on their own.
 - **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator.
 - **Native reasoning display** — the model's thinking appears in Copilot Chat's own collapsible block.
 - **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
@@ -54,7 +54,7 @@ list ids in `antigravity.hiddenModels` to remove specific entries.
 ### Effort tiers
 
 Antigravity addresses each effort tier as its own model id, so discovery reports
-"Gemini 3.7 Flash (High)", "(Medium)" and "(Low)" as three separate models.
+"Gemini 3.8 Flash (High)", "(Medium)" and "(Low)" as three separate models.
 
 By default they are folded into one entry with a **Thinking Effort** control beside the
 model in the picker, the way Copilot's own models work. Only the tiers the backend

@@ -121,7 +121,13 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			if (config.collapseTiers()) {
 				curated = collapseTiers(curated);
 			}
-			log.info(op, 'catalog curated', { from: catalog.models.length, to: curated.length });
+			// Name them, not just count them: "to=8" cannot tell you which model is the
+			// one you did not expect.
+			log.info(op, 'catalog curated', {
+				from: catalog.models.length,
+				to: curated.length,
+				offered: curated.map((m) => m.id).join(','),
+			});
 
 			return curated
 				.filter((model) => !hidden.has(model.id))
