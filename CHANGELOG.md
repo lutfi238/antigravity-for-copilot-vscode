@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.4
+
+- Generate globally unique tool-call ids across provider responses so repeated
+  Agent-mode calls do not leave Copilot permission prompts or tool results stuck.
+
+## 0.13.3
+
+- Strip recursive `x-*` vendor metadata from MCP tool schemas before Gemini
+  serialization, fixing `x-mcp-header` payload errors in Agent mode.
+
 ## 0.13.2
 
 - Report completed Gemini/Antigravity token usage to VS Code's Context Window widget, matching

@@ -84,7 +84,11 @@ function clean(node: unknown): unknown {
 	}
 
 	for (const [key, value] of Object.entries(node)) {
-		if (UNSUPPORTED_KEYWORDS.has(key)) {
+		// MCP/JSON-Schema providers commonly attach vendor annotations as x-* keys.
+		// They are valid metadata for the host, but the Antigravity Schema protobuf
+		// rejects them as unknown fields. Property names remain untouched because
+		// NAME_KEYED_CONTAINERS are handled below as author-chosen map keys.
+		if (UNSUPPORTED_KEYWORDS.has(key) || /^x-/i.test(key)) {
 			continue;
 		}
 

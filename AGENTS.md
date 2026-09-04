@@ -33,4 +33,4 @@
 
 - [`src/AGENTS.md`](src/AGENTS.md) — extension lifecycle, provider orchestration, configuration, logging, and source-domain index.
 - [`test/AGENTS.md`](test/AGENTS.md) — Vitest contracts, coverage map, and VS Code test stub.
-- Root-owned files: `package.json`, `package-lock.json`, `tsconfig.json`, `vitest.config.ts`, `esbuild.js`, `icon.build.cjs`, `README.md`, `CHANGELOG.md`, `LICENSE`, and `media/`.
+- Root-owned files: `package.json`, `package-lock.json`, `tsconfig.json`, `vitest.config.ts`, `esbuild.js`, `icon.build.cjs`, `README.md`, `CHANGELOG.md`, `LICENSE`, `ANTIGRAVITY_CAPABILITIES.md`, and `media/`.

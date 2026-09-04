@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { randomUUID } from 'node:crypto';
 import { ToolNameMap } from './schema';
 import { SignatureCache, textKey } from './thinking';
 import { GeminiCandidate, GeminiPart, GeminiUsage, GenerateContentResponse, USAGE_DATA_PART_MIME } from './types';
@@ -146,7 +147,12 @@ export function emitChunk(chunk: GenerateContentResponse, context: EmitContext, 
 function emitPart(part: GeminiPart, context: EmitContext, state: EmitState): void {
 	if (part.functionCall) {
 		const name = context.names.resolve(part.functionCall.name);
-		const callId = `${part.functionCall.name}__${state.toolCallIndex++}`;
+		// Gemini does not provide a call id. A per-response counter is insufficient:
+		// VS Code may execute several provider responses in one Agent turn, and it
+		// uses the id to correlate permission prompts and tool results across them.
+		// Use an opaque UUID so repeated calls such as view__0 cannot collide.
+		const callId = `call_${randomUUID()}`;
+		state.toolCallIndex++;
 
 		if (part.thoughtSignature) {
 			context.signatures.set(callId, part.thoughtSignature);

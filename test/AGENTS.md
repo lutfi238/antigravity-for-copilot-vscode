@@ -9,7 +9,7 @@
 - `envelope.test.ts` covers session metadata, request ids, FNV-1a values, field order, and outer envelopes.
 - `constants.test.ts` covers the Antigravity CLI fingerprint used in gateway headers.
 - `modelinfo.test.ts` covers picker configuration schemas and effort-source resolution.
-- `provider.test.ts` covers the provider response seam, including SSE consumption and usage-part forwarding.
+- `provider.test.ts` covers the provider response seam, including SSE consumption, usage-part forwarding, and unique synthesized tool-call ids.
 - `models.test.ts` covers discovery parsing, curation, tier collapsing/resolution, quota groups, and fallback models.
 - `schema.test.ts` covers schema normalization and tool-name sanitization/mapping.
 - `stream.test.ts` covers SSE framing and parsing.

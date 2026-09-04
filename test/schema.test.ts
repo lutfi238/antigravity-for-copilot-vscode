@@ -49,6 +49,28 @@ describe('sanitizeSchema', () => {
 		expect(out).toEqual({ type: 'string', enum: ['a'] });
 	});
 
+	it('strips MCP vendor extensions from nested schema nodes', () => {
+		// VS Code MCP tools can attach x-mcp-* metadata to a property schema. The
+		// Antigravity protobuf Schema has no field for vendor extensions, even when
+		// they are several levels below the tool's top-level parameters object.
+		const out = sanitizeSchema({
+			type: 'object',
+			properties: {
+				request: {
+					type: 'object',
+					properties: {
+						value: { type: 'string', 'x-mcp-header': 'Authorization' },
+						'x-mcp-header': { type: 'boolean' },
+					},
+				},
+			},
+		}) as any;
+
+		expect(out.properties.request.properties.value).toEqual({ type: 'string' });
+		expect(out.properties.request.properties['x-mcp-header']).toEqual({ type: 'boolean' });
+		expect(out.properties.request.properties.value).not.toHaveProperty('x-mcp-header');
+	});
+
 	it('preserves dropped constraints as a description hint rather than losing them', () => {
 		// The model still needs to know a value is capped, even if the wire cannot say so.
 		const out = sanitizeSchema({ type: 'string', minLength: 2, maxLength: 8, pattern: '^a' }) as any;
@@ -184,4 +206,3 @@ describe('ToolNameMap', () => {
 		expect(new ToolNameMap().resolve('never_seen')).toBe('never_seen');
 	});
 });
-

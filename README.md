@@ -17,7 +17,7 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 
 - **Native integration** — the models appear in the standard model picker, in Chat and Agent mode.
 - **Automatic model discovery** with a curated default, so the picker shows what Antigravity offers rather than every internal alias — new generations appear on their own.
-- **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator.
+- **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator, including recursive stripping of MCP `x-*` vendor metadata and unique ids across multi-step Agent turns.
 - **Native reasoning display** — the model's thinking appears in Copilot Chat's own collapsible block.
 - **Context usage reporting** — completed gateway token usage feeds VS Code's Context Window
   widget, including its prompt breakdown when the installed VS Code build supports it.
