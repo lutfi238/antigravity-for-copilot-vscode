@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-	"version": "0.13.4",
+	"version": "0.15.2",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -49,6 +49,73 @@
         "vendor": "antigravity",
         "displayName": "Antigravity",
         "managementCommand": "antigravity.manage"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "antigravity_generate_image",
+        "displayName": "Antigravity Image Generation",
+        "modelDescription": "Generate a raster image through Antigravity's native generate_image tool. Returns the generated image inline.",
+        "userDescription": "Generate an image using Antigravity.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "antigravityGenerateImage",
+        "icon": "$(file-media)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "The image description.",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "aspectRatio": {
+              "type": "string",
+              "description": "Best-effort output aspect-ratio hint.",
+              "enum": [
+                "1:1",
+                "16:9",
+                "9:16",
+                "4:3",
+                "3:4"
+              ]
+            }
+          },
+          "required": ["prompt"],
+          "additionalProperties": false
+        },
+        "tags": [
+          "image",
+          "generate",
+          "antigravity"
+        ]
+      },
+      {
+        "name": "antigravity_web_search",
+        "displayName": "Antigravity Web Search",
+        "modelDescription": "Search the public web through the installed Antigravity CLI's native search_web tool. Returns a concise grounded answer with source URLs.",
+        "userDescription": "Search the web using Antigravity.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "antigravityWebSearch",
+        "icon": "$(globe)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The web search query.",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        },
+        "tags": [
+          "web",
+          "search",
+          "antigravity"
+        ]
       }
     ],
     "commands": [
@@ -150,6 +217,14 @@
           "type": "boolean",
           "default": true,
           "description": "Show remaining Antigravity quota in the status bar."
+        },
+        "antigravity.cliPath": {
+          "type": "string",
+          "default": "agy",
+          "markdownDescription": "Path to the Antigravity CLI used by **Web Search** and **Image Generation**. The extension also checks `AGY_PATH` and the standard Windows installation path when this remains `agy`.",
+          "tags": [
+            "advanced"
+          ]
         }
       }
     }

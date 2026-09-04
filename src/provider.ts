@@ -23,7 +23,7 @@ import { ProjectResolver } from './auth/project';
 import { config } from './config';
 import { log, newOperationId } from './log';
 import { buildRequest } from './translate/toGemini';
-import { createUsageDataPart, emitChunk, finishNote, newEmitState } from './translate/fromGemini';
+import { closeThinkingPart, createUsageDataPart, emitChunk, finishNote, newEmitState } from './translate/fromGemini';
 import { SignatureCache } from './translate/thinking';
 import { GenerateContentResponse } from './translate/types';
 import { buildAgentMetadata, buildEnvelope, createSession, orderRequestFields } from './api/agent-metadata';
@@ -240,6 +240,12 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 					break;
 				}
 				emitChunk(chunk, context, state);
+			}
+			// A stream may end immediately after a thought part (for example when the
+			// gateway sends usage/finish metadata in a separate final event). Close the
+			// native thinking block even when no answer/tool part follows it.
+			if (!token.isCancellationRequested) {
+				closeThinkingPart(context, state);
 			}
 
 			const note = finishNote(state.finishReason);

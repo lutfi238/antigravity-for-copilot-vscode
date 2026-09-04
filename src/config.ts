@@ -32,6 +32,10 @@ export const config = {
 	showStatusBar(): boolean {
 		return get('showStatusBar', true);
 	},
+	/** Optional path to the installed Antigravity CLI used by native web search and image generation. */
+	cliPath(): string {
+		return get('cliPath', 'agy');
+	},
 	/** Pins generation traffic to one host, for when the default chain misbehaves. */
 	generationEndpoints(): readonly string[] {
 		switch (get<string>('endpoint', 'auto')) {

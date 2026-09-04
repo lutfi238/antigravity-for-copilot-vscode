@@ -15,11 +15,12 @@ initialisation event. The public SDK documents **13 stable built-in tool names**
 including filesystem operations, shell execution, image generation, web search,
 URL reading, questions, subagents, and `finish`.
 
-The extension in this repository currently bridges the model/gateway layer. It
-forwards the tools supplied by the VS Code caller and converts returned tool
-calls; it does not automatically acquire the native `agy` harness tools. A
-model ID such as Gemini 3.8 Flash therefore does not, by itself, make
-`search_web`, `/codesearch`, browser automation, or native subagents available
+The extension in this repository bridges the model/gateway layer and now adds
+two explicit host-side bridges for native web search and image generation. It
+still forwards ordinary tools supplied by the VS Code caller and converts
+returned tool calls; it does not automatically acquire the rest of the native
+`agy` harness. A model ID such as Gemini 3.8 Flash therefore does not, by
+itself, make `/codesearch`, browser automation, or native subagents available
 inside Copilot Chat.
 
 The closest safe analogue to the Gaussian/Codex pattern is an explicit tool
@@ -264,12 +265,21 @@ reference pages describe this packaging and the asynchronous subagent model:
 The repository evidence is explicit:
 
 - [`package.json`](package.json) contributes a
-  `languageModelChatProviders` entry, but no `languageModelTools` contribution.
+  `languageModelChatProviders` entry and the `antigravity_web_search`/
+  `antigravity_generate_image` `languageModelTools` markers.
 - [`src/extension.ts`](src/extension.ts) registers the Antigravity language-model
-  provider and management commands; it does not register a native tool runner.
+  provider, management commands, and the web-search/image-generation runners.
 - [`src/provider.ts`](src/provider.ts) passes `options.tools` into the Gemini
   request builder. Incoming function calls are emitted as VS Code
   `LanguageModelToolCallPart` values; the provider does not execute them.
+- [`src/agyCli.ts`](src/agyCli.ts) is the explicit exception: it starts the
+  configured local `agy` executable for the web-search tool, parses its
+  `stream-json` result, and requires an observed `search_web` step before
+  returning output.
+- [`src/agyImage.ts`](src/agyImage.ts) is the image-generation sidecar bridge. It
+  requires an observed `generate_image` step, accepts only validated raster
+  artifacts from Antigravity brain directories, and bounds both image count and
+  byte size before creating VS Code image data parts.
 - The VS Code type contract says that `ProvideLanguageModelChatResponseOptions.tools`
   are supplied by the caller, and that the caller must invoke the tool and send
   a `LanguageModelToolResultPart` back. The same contract says a tool registered
@@ -277,32 +287,59 @@ The repository evidence is explicit:
   the request (`node_modules/@types/vscode/index.d.ts`, lines 20495–20506 and
   20706–20717).
 
-Therefore the current extension can faithfully transport a tool declaration and
-its result, but it cannot acquire the native `agy` tool runtime just by changing
-the model list or by placing a name in `request.tools`.
+Therefore the current extension can faithfully transport ordinary tool
+declarations and has two explicit native bridges (web search and image
+generation), but it still cannot acquire the complete `agy` tool runtime just
+by changing the model list or by placing native names in `request.tools`.
 
 ## Recommendation for Gaussian/Codex-style parity
 
-### 1. Recommended first step: explicit VS Code tool bridge
+### 1. Implemented in 0.14.0: explicit VS Code web-search bridge
 
-Add a small, intentionally scoped set of tools and register them through the VS
-Code language-model tool API (with the matching `languageModelTools` manifest):
+The first bridge is now implemented as a small, intentionally scoped tool
+registered through the VS Code language-model tool API:
 
-- `antigravity_code_search`: bounded workspace search with regex/literal and
-  path filters, modelled after `/codesearch`.
-- `antigravity_web_search`: an authorized web-search backend, with source URLs
-  and attribution in the result.
-- `antigravity_read_url`: fetch a known URL with size/time limits and the same
-  URL permission policy.
+- `antigravity_code_search` remains a future option; the installed Copilot
+  build already provides `copilot_searchCodebase`, so it is not duplicated here.
+- `antigravity_web_search`: starts `agy --print --output-format stream-json`,
+  confines the prompt to one native `search_web` call, and returns its grounded
+  markdown/source URLs.
 
 The extension’s existing schema sanitizer, tool-name mapping, cancellation, and
-tool-result round trip can carry these declarations. The execution side must
-remain in the VS Code host and preserve user confirmation/workspace trust. If
-the desired search backend is Codex, call an officially authorized/local Codex
-service; do not infer or reproduce an undocumented Antigravity internal
-endpoint.
+tool-result round trip carry the declaration. The execution side remains in the
+local UI host and does not use Gaussian’s Codex marker. The CLI must already be
+authenticated; the optional `antigravity.cliPath` setting selects its executable.
 
-### 2. Optional shared adapter: standalone MCP server
+`antigravity_read_url` remains unnecessary because Copilot already provides
+`copilot_fetchWebPage` in the installed VS Code build.
+
+### 2. Implemented in 0.15.0 (artifact recovery fixed in 0.15.1): explicit VS Code image-generation bridge
+
+The second bridge exposes the native `generate_image` capability as a VS Code
+tool without pretending that a function declaration alone can execute it:
+
+- `antigravity_generate_image` starts a bounded `agy --print` sidecar and
+  instructs it to make exactly one native `generate_image` call.
+- The parser accepts the CLI's observed `generateImage.outputPath`/`imagePaths`
+  variants, plus validated inline raster data when a future CLI emits it.
+- Only PNG, JPEG, GIF, and WebP bytes within the configured size bounds are
+  attached through `LanguageModelDataPart.image`.
+- Artifact paths are resolved through `realpath` and restricted to the CLI's
+  own `~/.gemini/antigravity*/brain` directories. Unexpected tool calls are
+  rejected, the VS Code tool asks for confirmation, and the sidecar never
+  receives `--dangerously-skip-permissions` (the optional CLI sandbox is not
+  forced because Agy documents it only for Linux/macOS).
+- Agy 1.1.26 can persist the generated JPEG in the conversation directory while
+  omitting `output_path` from the headless stream. Version 0.15.1 captures the
+  stream's `conversation_id` and performs a bounded, recent-file scan in that
+  exact session directory, which closes the gap without broadening file access.
+
+The tool supports optional `1:1`, `16:9`, `9:16`, `4:3`, and `3:4` aspect-ratio
+hints. Input-image editing is intentionally not exposed yet because the
+headless CLI's attachment contract is not stable enough to safely map into the
+VS Code tool API.
+
+### 3. Optional shared adapter: standalone MCP server
 
 Package the same implementations as a stdio MCP server so `agy`, Antigravity
 IDE, and other MCP clients can share them. Configure it in `.agents/mcp_config.json`
@@ -311,7 +348,7 @@ still needs the caller/editor to pass those MCP tools (or an MCP client/bridge
 must be implemented); the extension cannot assume that `agy`’s MCP config is
 loaded into Copilot Chat.
 
-### 3. Exact native harness (high fidelity, high coupling)
+### 4. Exact native harness (high fidelity, high coupling)
 
 Running a long-lived `agy --input-format stream-json --output-format stream-json`
 sidecar, or embedding the official Python SDK, would expose the native harness,
@@ -325,8 +362,8 @@ adapter/product mode, not a small provider patch.
 - Do not treat the 57 runtime names as a stable public API.
 - Do not silently import permissive CLI settings (shell, browser, or
   non-workspace access) into VS Code.
-- Do not claim `/codesearch` parity when only `search_web` is wired, or claim
-  that a tool is executable until a host-side runner exists.
+- Do not claim `/codesearch` parity when only the explicit web/image bridges are
+  wired, or claim that a tool is executable until a host-side runner exists.
 
 ## Primary sources
 
@@ -336,7 +373,8 @@ adapter/product mode, not a small provider patch.
 4. Google Antigravity MCP: <https://antigravity.google/docs/mcp.md>
 5. Google Antigravity CLI features/reference: <https://antigravity.google/docs/cli/features.md>, <https://antigravity.google/docs/cli/reference.md>
 6. Google Antigravity SDK enum source: <https://github.com/google-antigravity/antigravity-sdk-python/blob/main/google/antigravity/types.py#L293-L360>
-7. VS Code provider/tool contract: `node_modules/@types/vscode/index.d.ts` in this checkout (lines noted above).
+7. Google Antigravity SDK `GenerateImageResult.output_path` and local event shape: <https://github.com/google-antigravity/antigravity-sdk-python/blob/main/google/antigravity/connections/local/types.py>, <https://github.com/google-antigravity/antigravity-sdk-python/blob/main/google/antigravity/connections/local/event_processor_test.py>
+8. VS Code provider/tool contract: `node_modules/@types/vscode/index.d.ts` in this checkout (lines noted above).
 
 This report is a time-bound compatibility snapshot. Re-run the headless init
 probe and `agy models` after a CLI update before changing the extension’s

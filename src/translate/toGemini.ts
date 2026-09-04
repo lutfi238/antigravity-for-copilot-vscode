@@ -4,6 +4,9 @@ import { emptySchema, sanitizeSchema, ToolNameMap } from './schema';
 import { applyThinking, ReasoningEffort, SignatureCache, textKey } from './thinking';
 import { GeminiContent, GeminiGenerationConfig, GeminiPart, GeminiRequest, GeminiTool, USAGE_DATA_PART_MIME } from './types';
 
+/** Hosted markers owned by another provider must not be sent to Antigravity as functions. */
+const INCOMPATIBLE_HOSTED_TOOL_NAMES = new Set(['codexForCopilot_searchWeb']);
+
 export interface BuildOptions {
 	model: ModelSpec;
 	messages: readonly vscode.LanguageModelChatRequestMessage[];
@@ -170,11 +173,12 @@ function buildTools(
 	tools: readonly vscode.LanguageModelChatTool[] | undefined,
 	names: ToolNameMap,
 ): GeminiTool | undefined {
-	if (!tools || tools.length === 0) {
+	const compatibleTools = tools?.filter((tool) => !INCOMPATIBLE_HOSTED_TOOL_NAMES.has(tool.name));
+	if (!compatibleTools || compatibleTools.length === 0) {
 		return undefined;
 	}
 
-	const functionDeclarations = tools.map((tool) => ({
+	const functionDeclarations = compatibleTools.map((tool) => ({
 		name: names.register(tool.name),
 		// The gateway requires a non-empty description.
 		description: tool.description || tool.name,

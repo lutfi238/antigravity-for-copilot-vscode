@@ -21,12 +21,13 @@ type VSCodeWithThinkingPart = typeof vscode & {
 export function createThinkingPart(
 	value: string,
 	id?: string,
+	metadata?: { readonly [key: string]: unknown },
 ): vscode.LanguageModelResponsePart | undefined {
 	const ThinkingPart = (vscode as VSCodeWithThinkingPart).LanguageModelThinkingPart;
 	if (typeof ThinkingPart !== 'function') {
 		return undefined;
 	}
-	return new ThinkingPart(value, id) as vscode.LanguageModelResponsePart;
+	return new ThinkingPart(value, id, metadata) as vscode.LanguageModelResponsePart;
 }
 
 export function supportsThinkingPart(): boolean {
@@ -44,7 +45,7 @@ export interface EmitContext {
 export interface EmitState {
 	toolCallIndex: number;
 	textBuffer: string;
-	/** True while mid-blockquote, so the next answer token can close it. */
+	/** True while a native thinking block or fallback blockquote is open. */
 	thinkingOpen: boolean;
 	/** Groups streamed reasoning chunks into a single collapsible block. */
 	thinkingId: string;
@@ -66,6 +67,31 @@ export function newEmitState(): EmitState {
 		thinkingId: `r${Date.now().toString(36)}`,
 		thoughtParts: 0,
 	};
+}
+
+/**
+ * Tells Copilot that the current native thinking block has ended.
+ *
+ * The proposed VS Code thinking-part protocol uses an empty part with this metadata
+ * sentinel instead of inferring the boundary from the next text chunk. Without it,
+ * Copilot keeps the answer attached to the reasoning card (the visible "box" symptom
+ * in Agent mode). Older hosts still receive the original blockquote separator.
+ */
+export function closeThinkingPart(
+	context: Pick<EmitContext, 'progress'>,
+	state: EmitState,
+): void {
+	if (!state.thinkingOpen) {
+		return;
+	}
+
+	const done = createThinkingPart('', '', { vscode_reasoning_done: true });
+	if (done) {
+		context.progress.report(done);
+	} else {
+		context.progress.report(new vscode.LanguageModelTextPart('\n\n'));
+	}
+	state.thinkingOpen = false;
 }
 
 /** Unwraps the gateway's `response` envelope, which is absent on some hosts. */
@@ -146,6 +172,7 @@ export function emitChunk(chunk: GenerateContentResponse, context: EmitContext, 
 
 function emitPart(part: GeminiPart, context: EmitContext, state: EmitState): void {
 	if (part.functionCall) {
+		closeThinkingPart(context, state);
 		const name = context.names.resolve(part.functionCall.name);
 		// Gemini does not provide a call id. A per-response counter is insufficient:
 		// VS Code may execute several provider responses in one Agent turn, and it
@@ -179,6 +206,7 @@ function emitPart(part: GeminiPart, context: EmitContext, state: EmitState): voi
 		// into a single block rather than one per token.
 		const thinking = createThinkingPart(part.text, state.thinkingId);
 		if (thinking) {
+			state.thinkingOpen = true;
 			context.progress.report(thinking);
 			return;
 		}
@@ -193,11 +221,8 @@ function emitPart(part: GeminiPart, context: EmitContext, state: EmitState): voi
 		return;
 	}
 
-	// First answer text after a reasoning run: close the quote block.
-	if (state.thinkingOpen) {
-		state.thinkingOpen = false;
-		context.progress.report(new vscode.LanguageModelTextPart('\n\n'));
-	}
+	// First answer text after a reasoning run: close the thinking block.
+	closeThinkingPart(context, state);
 
 	if (part.thoughtSignature) {
 		state.textBuffer += part.text;

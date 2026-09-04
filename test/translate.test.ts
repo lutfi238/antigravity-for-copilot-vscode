@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 import { ModelSpec } from '../src/api/models';
 import { buildRequest } from '../src/translate/toGemini';
-import { createUsageDataPart, emitChunk, newEmitState } from '../src/translate/fromGemini';
+import { closeThinkingPart, createUsageDataPart, emitChunk, newEmitState } from '../src/translate/fromGemini';
 import { SignatureCache } from '../src/translate/thinking';
 import { ToolNameMap } from '../src/translate/schema';
 import { GenerateContentResponse } from '../src/translate/types';
@@ -111,6 +111,20 @@ describe('buildRequest — tool round trip', () => {
 			type: 'object',
 			properties: { q: { enum: ['fixed'], type: 'string' } },
 		});
+	});
+
+	it('does not forward Gaussian hosted-search markers to Antigravity', () => {
+		const { request } = build(
+			[userMessage(new vscode.LanguageModelTextPart('search'))],
+			[
+				{ name: 'codexForCopilot_searchWeb', description: 'Codex hosted search' },
+				{ name: 'copilot_fetchWebPage', description: 'Fetch a known page' },
+			],
+		);
+
+		expect(request.tools?.[0].functionDeclarations?.map((tool) => tool.name)).toEqual([
+			'copilot_fetchWebPage',
+		]);
 	});
 
 	it('substitutes a description when the tool has none', () => {
@@ -418,6 +432,53 @@ describe('reasoning rendering', () => {
 		const ids = (h.parts as any[]).map((p) => p.id);
 		expect(ids[0]).toBeDefined();
 		expect(ids[0]).toBe(ids[1]);
+	});
+
+	it('closes the native thinking block before answer text', () => {
+		const h = harness(true);
+		emitChunk(thoughtChunk('weighing options'), h.context, h.state);
+		emitChunk(
+			({ response: { candidates: [{ content: { role: 'model', parts: [{ text: 'answer' }] } }] } }) as GenerateContentResponse,
+			h.context,
+			h.state,
+		);
+
+		expect(h.parts).toHaveLength(3);
+		const [, done, answer] = h.parts as any[];
+		expect(done).toBeInstanceOf((vscode as any).LanguageModelThinkingPart);
+		expect(done.value).toBe('');
+		expect(done.id).toBe('');
+		expect(done.metadata).toEqual({ vscode_reasoning_done: true });
+		expect(answer).toBeInstanceOf(vscode.LanguageModelTextPart);
+	});
+
+	it('closes the native thinking block before a tool call', () => {
+		const h = harness(true);
+		emitChunk(thoughtChunk('checking the workspace'), h.context, h.state);
+		emitChunk(
+			({
+				response: {
+					candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'read_file', args: { path: 'a' } } }] } }],
+				},
+			}) as GenerateContentResponse,
+			h.context,
+			h.state,
+		);
+
+		expect(h.parts).toHaveLength(3);
+		expect((h.parts[1] as any).metadata).toEqual({ vscode_reasoning_done: true });
+		expect(h.parts[2]).toBeInstanceOf(vscode.LanguageModelToolCallPart);
+	});
+
+	it('can close a trailing thinking block when the stream has no answer part', () => {
+		const h = harness(true);
+		emitChunk(thoughtChunk('final internal check'), h.context, h.state);
+		closeThinkingPart(h.context, h.state);
+		closeThinkingPart(h.context, h.state);
+
+		expect(h.parts).toHaveLength(2);
+		expect((h.parts[1] as any).metadata).toEqual({ vscode_reasoning_done: true });
+		expect(h.state.thinkingOpen).toBe(false);
 	});
 
 	it('falls back to a blockquote when the runtime has no thinking part', () => {

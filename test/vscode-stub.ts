@@ -23,7 +23,17 @@ export class LanguageModelToolResultPart {
 	) {}
 }
 
+export class LanguageModelToolResult {
+	constructor(
+		public content: unknown[],
+	) {}
+}
+
 export class LanguageModelDataPart {
+	static image(data: Uint8Array, mimeType: string): LanguageModelDataPart {
+		return new LanguageModelDataPart(data, mimeType);
+	}
+
 	constructor(
 		public data: Uint8Array,
 		public mimeType: string,

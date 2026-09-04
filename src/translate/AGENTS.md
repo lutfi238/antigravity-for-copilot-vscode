@@ -22,6 +22,7 @@
 - Replay Gemini thought signatures across turns. VS Code history cannot store them, so cache by tool call id or stable assistant-text key.
 - Gemini reasoning effort comes from the tiered model id; only numeric-budget models receive `thinkingBudget`, which must stay strictly below `maxOutputTokens`.
 - Prefer native `LanguageModelThinkingPart` when present at runtime and retain the text-blockquote fallback.
+- After native thinking, emit the empty `vscode_reasoning_done` thinking-part sentinel before answer text, tool calls, or stream completion so Agent mode closes the reasoning card; keep the blockquote separator for older hosts.
 - Report completed gateway usage as a `LanguageModelDataPart` with MIME type `usage` and OpenAI-shaped snake_case fields so VS Code's context-window widget can display real usage. Never replay that internal part to Gemini.
 - Count Gemini visible candidates and `thoughtsTokenCount` together as completion usage because both consume the context window.
 

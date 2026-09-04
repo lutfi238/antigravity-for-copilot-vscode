@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.15.2
+
+- Close native VS Code thinking parts with the `vscode_reasoning_done` sentinel
+  before the answer, tool calls, and end of stream, preventing Agent-mode answers
+  from rendering as an unfinished reasoning box.
+
+## 0.15.1
+
+- Fix image generation when newer Agy CLI streams omit `output_path`: recover
+  recent raster artifacts from the matching conversation directory and validate
+  them before attaching them to Copilot.
+
+## 0.15.0
+
+- Add an `antigravity_generate_image` VS Code tool backed by the installed `agy`
+  CLI's native `generate_image` capability. Generated PNG, JPEG, GIF, and WebP
+  artifacts are validated and attached inline to the Copilot tool result.
+- Support optional `1:1`, `16:9`, `9:16`, `4:3`, and `3:4` aspect-ratio hints while
+  keeping generated artifact reads restricted to Antigravity's own brain folders.
+
+## 0.14.0
+
+- Add an `antigravity_web_search` VS Code tool backed by the installed `agy`
+  CLI's native `search_web` capability, with grounded markdown and source URLs.
+- Filter Gaussian/Codex's incompatible `codexForCopilot_searchWeb` marker from
+  Antigravity requests so Gemini no longer attempts a Codex-only hosted tool.
+
 ## 0.13.4
 
 - Generate globally unique tool-call ids across provider responses so repeated

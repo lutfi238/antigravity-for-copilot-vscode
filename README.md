@@ -18,6 +18,8 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Native integration** — the models appear in the standard model picker, in Chat and Agent mode.
 - **Automatic model discovery** with a curated default, so the picker shows what Antigravity offers rather than every internal alias — new generations appear on their own.
 - **Full tool calling** — built-in, extension and MCP tools are forwarded to the backend, with schemas rewritten to survive its strict validator, including recursive stripping of MCP `x-*` vendor metadata and unique ids across multi-step Agent turns.
+- **Antigravity Web Search** — optionally attach `#antigravityWebSearch` in Agent mode to run the installed `agy` CLI's native `search_web` tool and return grounded source URLs.
+- **Antigravity Image Generation** — attach `#antigravityGenerateImage` in Agent mode to run the installed `agy` CLI's native `generate_image` tool and return the raster image inline, with optional aspect-ratio control.
 - **Native reasoning display** — the model's thinking appears in Copilot Chat's own collapsible block.
 - **Context usage reporting** — completed gateway token usage feeds VS Code's Context Window
   widget, including its prompt breakdown when the installed VS Code build supports it.
@@ -27,6 +29,13 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Multiple accounts**, switched manually.
 
 Tool execution, confirmation, workspace trust and permissions remain handled by VS Code.
+The Antigravity Web Search and Image Generation tools are the exceptions in
+transport: their registered runners start the local `agy` CLI, while Copilot
+still owns tool approval and the conversation loop.
+
+The extension does not silently expose Gaussian/Codex's `codexForCopilot_searchWeb`
+marker to Antigravity models. That marker belongs to the Codex Responses backend.
+Use `#antigravityWebSearch` when you want the Antigravity-native search bridge.
 
 ## Get started
 
@@ -115,21 +124,60 @@ Under **Settings → Extensions → Antigravity**:
 - `antigravity.projectId` — override project discovery, if you see 403s naming a project
 - `antigravity.endpoint` — pin generation traffic to one gateway host
 - `antigravity.showStatusBar` — show remaining quota
+- `antigravity.cliPath` — optional path to the `agy` executable used by Antigravity Web Search and Image Generation
 
 Proxies come from `http.proxy` or `HTTPS_PROXY`/`HTTP_PROXY`, with `NO_PROXY` respected.
 
 ### Reasoning
 
 Reasoning is shown by default, rendered as Copilot Chat's own collapsible **Thinking…**
-block. `LanguageModelThinkingPart` is present in the VS Code runtime but absent from
-`@types/vscode`, so it is feature-detected: builds that lack it fall back to a markdown
-blockquote above the answer. Turn it off with `antigravity.showThinking`.
+block. The bridge sends the same completion marker used by Copilot's Agent host when
+thinking ends, so the answer stays a normal message instead of being attached to an
+unfinished reasoning card. `LanguageModelThinkingPart` is present in the VS Code runtime
+but absent from `@types/vscode`, so it is feature-detected: builds that lack it fall back
+to a markdown blockquote above the answer. Turn it off with `antigravity.showThinking`.
 
 Not every model returns its reasoning. Gemini Pro and Claude send thought text and get a
 block; Gemini Flash reports thought tokens in usage but sends no thought parts, so
 nothing renders even though it is thinking. The log distinguishes the two —
 `thoughtTokens>0` with `thoughtParts=0` means the gateway withheld the text, which is a
 backend behaviour rather than a fault in this extension.
+
+### Web search
+
+Antigravity Web Search is a VS Code tool backed by the locally installed `agy`
+CLI. Select it in the Agent tool picker or reference it as `#antigravityWebSearch`.
+The bridge starts a bounded headless `agy` run, instructs it to execute exactly
+one native `search_web` call, and returns the resulting markdown answer and
+source URLs. It does not reuse the Gaussian/Codex hosted search marker.
+
+The CLI must already be authenticated. Set `antigravity.cliPath` if `agy` is
+not on PATH; on Windows the standard `%LOCALAPPDATA%\agy\bin\agy.EXE`
+installation is detected automatically. Search runs consume the CLI's own
+Antigravity quota and remain subject to its permissions and network policy.
+
+### Image generation
+
+Antigravity Image Generation is a VS Code tool backed by the locally installed
+`agy` CLI. Select it in the Agent tool picker or reference it as
+`#antigravityGenerateImage`. The bridge starts a bounded headless run,
+instructs it to execute exactly one native `generate_image` call, and attaches
+the validated PNG, JPEG, GIF, or WebP result to the tool response. An optional
+`aspectRatio` hint (`1:1`, `16:9`, `9:16`, `4:3`, or `3:4`) can guide the native
+generator; final dimensions remain controlled by Agy's image backend.
+
+The bridge accepts generated artifacts only from the matching Antigravity
+conversation's local brain directory and never reads arbitrary paths returned by
+the model. Newer Agy CLI builds may omit `output_path` from the headless event;
+the bridge then discovers only recent raster files in that same conversation
+directory. It does not expose the CLI's base64 payload or credentials to chat.
+Image generation uses the CLI's Antigravity quota, asks for VS Code confirmation
+before starting, and may take longer than a normal text response.
+
+If the tool reports **“generated no readable raster image artifact”**, the Agy
+model call may still have succeeded but the artifact was not available or was
+written in an unsupported format/location. Retry once after the CLI finishes;
+the bridge rejects stale, non-raster, oversized, or outside-session files.
 
 ## Develop locally
 

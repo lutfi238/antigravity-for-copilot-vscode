@@ -8,6 +8,8 @@ import { initLogging, log, showLogs } from './log';
 import { AntigravityProvider, VENDOR } from './provider';
 import { manage, ManageDeps, showAuthStatus, signIn } from './ui/manage';
 import { QuotaStatusBar } from './ui/statusBar';
+import { registerAntigravityImageGenerationTool } from './imageGeneration';
+import { registerAntigravityWebSearchTool } from './webSearch';
 
 export function activate(context: vscode.ExtensionContext): void {
 	initLogging(context);
@@ -34,6 +36,8 @@ export function activate(context: vscode.ExtensionContext): void {
 		vscode.commands.registerCommand('antigravity.showAuthStatus', () => showAuthStatus(deps)),
 		vscode.commands.registerCommand('antigravity.refresh', () => provider.refresh()),
 		vscode.commands.registerCommand('antigravity.openLogs', () => showLogs()),
+		registerAntigravityImageGenerationTool(),
+		registerAntigravityWebSearchTool(),
 		onModelAffectingChange(() => provider.refresh()),
 	);
 
