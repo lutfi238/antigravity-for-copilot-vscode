@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Mention the Antigravity backend in web-search and image-generation tool descriptions and progress messages.
+
 ## 0.15.2
 
 - Close native VS Code thinking parts with the `vscode_reasoning_done` sentinel

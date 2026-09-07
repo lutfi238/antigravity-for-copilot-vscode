@@ -55,8 +55,8 @@
       {
         "name": "antigravity_generate_image",
         "displayName": "Antigravity Image Generation",
-        "modelDescription": "Generate a raster image through Antigravity's native generate_image tool. Returns the generated image inline.",
-        "userDescription": "Generate an image using Antigravity.",
+        "modelDescription": "Generate a raster image with the Antigravity backend through the installed Antigravity CLI's native generate_image tool. Returns the generated image inline.",
+        "userDescription": "Generate an image with the Antigravity backend.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "antigravityGenerateImage",
         "icon": "$(file-media)",
@@ -93,8 +93,8 @@
       {
         "name": "antigravity_web_search",
         "displayName": "Antigravity Web Search",
-        "modelDescription": "Search the public web through the installed Antigravity CLI's native search_web tool. Returns a concise grounded answer with source URLs.",
-        "userDescription": "Search the web using Antigravity.",
+        "modelDescription": "Search the public web with the Antigravity backend through the installed Antigravity CLI's native search_web tool. Returns a concise grounded answer with source URLs.",
+        "userDescription": "Search the web with the Antigravity backend.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "antigravityWebSearch",
         "icon": "$(globe)",

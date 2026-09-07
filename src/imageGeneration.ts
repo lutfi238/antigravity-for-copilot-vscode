@@ -22,7 +22,7 @@ export function createImageToolResult(result: Awaited<ReturnType<typeof runAgyIm
 export function registerAntigravityImageGenerationTool(): vscode.Disposable {
 	return vscode.lm.registerTool<ImageGenerationInput>(ANTIGRAVITY_IMAGE_GENERATION_TOOL_NAME, {
 		prepareInvocation: () => ({
-			invocationMessage: 'Generating an image with Antigravity…',
+			invocationMessage: 'Generating an image with Antigravity backend…',
 			confirmationMessages: {
 				title: 'Generate an image with Antigravity?',
 				message: 'This uses your Antigravity account and may consume image-generation quota.',

@@ -10,7 +10,7 @@ interface WebSearchInput {
 /** Registers the Antigravity-native search marker that Copilot can attach to requests. */
 export function registerAntigravityWebSearchTool(): vscode.Disposable {
 	return vscode.lm.registerTool<WebSearchInput>(ANTIGRAVITY_WEB_SEARCH_TOOL_NAME, {
-		prepareInvocation: () => ({ invocationMessage: 'Searching the web with Antigravity…' }),
+		prepareInvocation: () => ({ invocationMessage: 'Searching the web with Antigravity backend…' }),
 		invoke: async (options, token) => {
 			try {
 				const answer = await runAgySearch(options.input.query, token);
