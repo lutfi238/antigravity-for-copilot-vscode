@@ -1,8 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## 0.15.3
 
 - Mention the Antigravity backend in web-search and image-generation tool descriptions and progress messages.
+- Exclude generated code-graph reports from the extension package.
 
 ## 0.15.2
 

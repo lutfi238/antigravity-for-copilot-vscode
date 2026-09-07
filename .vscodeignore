@@ -10,4 +10,5 @@ icon.build.cjs
 media/**
 !media/icon.png
 test/**
+graphify-out/**
 vitest.config.ts
