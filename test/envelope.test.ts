@@ -112,6 +112,23 @@ describe('orderRequestFields', () => {
 	it('omits fields that are absent rather than emitting undefined', () => {
 		expect(Object.keys(orderRequestFields({ contents: [] }))).toEqual(['contents']);
 	});
+
+	it('preserves a nested tool-call id through ordering and the envelope', () => {
+		// The gateway's Anthropic adapter needs this id; a future field whitelist must
+		// not silently strip it from inside contents[].parts[].
+		const request = {
+			contents: [
+				{
+					role: 'model',
+					parts: [{ functionCall: { name: 'read_file', args: {}, id: 'call-1' } }],
+				},
+			],
+		};
+		const ordered = orderRequestFields(request);
+		const envelope = buildEnvelope({ project: 'p', model: 'claude-sonnet-4-6', request: ordered, requestId: 'r' });
+		const parts = (envelope.request as typeof request).contents[0].parts;
+		expect(parts[0].functionCall.id).toBe('call-1');
+	});
 });
 
 describe('buildEnvelope', () => {

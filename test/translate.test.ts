@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 import { ModelSpec } from '../src/api/models';
-import { buildRequest } from '../src/translate/toGemini';
+import { BuildOptions, buildRequest } from '../src/translate/toGemini';
 import { closeThinkingPart, createUsageDataPart, emitChunk, newEmitState } from '../src/translate/fromGemini';
 import { SignatureCache } from '../src/translate/thinking';
 import { ToolNameMap } from '../src/translate/schema';
@@ -35,15 +35,21 @@ function assistantMessage(...content: unknown[]): vscode.LanguageModelChatReques
 	return { role: vscode.LanguageModelChatMessageRole.Assistant, content, name: undefined } as any;
 }
 
-function build(messages: vscode.LanguageModelChatRequestMessage[], tools?: vscode.LanguageModelChatTool[]) {
-	return buildRequest({
+// Single home for defaults, so a new required BuildOptions field needs one edit here.
+function buildOptions(overrides: Partial<BuildOptions> = {}): BuildOptions {
+	return {
 		model: GEMINI,
-		messages,
-		tools,
+		messages: [],
 		toolMode: vscode.LanguageModelChatToolMode.Auto,
 		reasoningEffort: 'off',
+		sendToolCallIds: false,
 		signatures: new SignatureCache(),
-	});
+		...overrides,
+	};
+}
+
+function build(messages: vscode.LanguageModelChatRequestMessage[], tools?: vscode.LanguageModelChatTool[]) {
+	return buildRequest(buildOptions({ messages, tools }));
 }
 
 describe('buildRequest — roles', () => {
@@ -136,14 +142,13 @@ describe('buildRequest — tool round trip', () => {
 	});
 
 	it('sets toolConfig mode from the requested tool mode', () => {
-		const required = buildRequest({
-			model: GEMINI,
-			messages: [userMessage(new vscode.LanguageModelTextPart('go'))],
-			tools: [{ name: 't', description: 'd' }],
-			toolMode: vscode.LanguageModelChatToolMode.Required,
-			reasoningEffort: 'off',
-			signatures: new SignatureCache(),
-		});
+		const required = buildRequest(
+			buildOptions({
+				messages: [userMessage(new vscode.LanguageModelTextPart('go'))],
+				tools: [{ name: 't', description: 'd' }],
+				toolMode: vscode.LanguageModelChatToolMode.Required,
+			}),
+		);
 		expect(required.request.toolConfig?.functionCallingConfig.mode).toBe('ANY');
 	});
 
@@ -154,20 +159,67 @@ describe('buildRequest — tool round trip', () => {
 	});
 });
 
+describe('buildRequest — tool call ids', () => {
+	function buildWithIds(model: ModelSpec, sendToolCallIds: boolean) {
+		return buildRequest(
+			buildOptions({
+				model,
+				messages: [
+					userMessage(new vscode.LanguageModelTextPart('read it')),
+					assistantMessage(new vscode.LanguageModelToolCallPart('call-1', 'github/read_file', { path: 'a.ts' })),
+					userMessage(new vscode.LanguageModelToolResultPart('call-1', [new vscode.LanguageModelTextPart('contents')])),
+				],
+				sendToolCallIds,
+			}),
+		).request;
+	}
+
+	it('forwards the call id on both the call and its result when enabled', () => {
+		const request = buildWithIds(CLAUDE, true);
+		const call = request.contents[1].parts[0].functionCall;
+		const response = request.contents[2].parts[0].functionResponse;
+		expect(call?.id).toBe('call-1');
+		expect(response?.id).toBe('call-1');
+	});
+
+	it('omits the id key entirely when disabled', () => {
+		const request = buildWithIds(CLAUDE, false);
+		const call = request.contents[1].parts[0].functionCall!;
+		const response = request.contents[2].parts[0].functionResponse!;
+		expect('id' in call).toBe(false);
+		expect('id' in response).toBe(false);
+	});
+
+	it('omits the id when the call id is empty', () => {
+		const request = buildRequest(
+			buildOptions({
+				model: CLAUDE,
+				messages: [
+					userMessage(new vscode.LanguageModelTextPart('go')),
+					assistantMessage(new vscode.LanguageModelToolCallPart('', 'github/read_file', {})),
+				],
+				sendToolCallIds: true,
+			}),
+		).request;
+		const call = request.contents.flatMap((c) => c.parts).find((p) => p.functionCall)!.functionCall!;
+		expect('id' in call).toBe(false);
+	});
+});
+
 describe('buildRequest — thinking budget', () => {
 	function withEffort(
 		model: ModelSpec,
 		reasoningEffort: 'off' | 'low' | 'medium' | 'high',
 		includeThoughts = false,
 	) {
-		return buildRequest({
-			model,
-			messages: [userMessage(new vscode.LanguageModelTextPart('go'))],
-			toolMode: vscode.LanguageModelChatToolMode.Auto,
-			reasoningEffort,
-			includeThoughts,
-			signatures: new SignatureCache(),
-		}).request;
+		return buildRequest(
+			buildOptions({
+				model,
+				messages: [userMessage(new vscode.LanguageModelTextPart('go'))],
+				reasoningEffort,
+				includeThoughts,
+			}),
+		).request;
 	}
 
 	it('sends Gemini a thinkingLevel only when thoughts are requested', () => {

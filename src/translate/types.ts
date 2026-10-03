@@ -9,8 +9,8 @@ export interface GeminiPart {
 	thought?: boolean;
 	/** Opaque token Gemini 3 requires to be echoed back on later turns. */
 	thoughtSignature?: string;
-	functionCall?: { name: string; args?: Record<string, unknown> };
-	functionResponse?: { name: string; response: Record<string, unknown> };
+	functionCall?: { name: string; args?: Record<string, unknown>; id?: string };
+	functionResponse?: { name: string; response: Record<string, unknown>; id?: string };
 	inlineData?: { mimeType: string; data: string };
 }
 

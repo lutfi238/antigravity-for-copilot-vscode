@@ -121,6 +121,7 @@ Under **Settings → Extensions → Antigravity**:
 - `antigravity.hiddenModels` — model ids to omit from the picker
 - `antigravity.reasoningEffort` — starting value for the picker's **Thinking Effort** control
 - `antigravity.showThinking` — show the model's reasoning (on by default)
+- `antigravity.toolCallIds` — forward tool-call ids on the wire: `claude` (default), `all`, or `off`
 - `antigravity.projectId` — override project discovery, if you see 403s naming a project
 - `antigravity.endpoint` — pin generation traffic to one gateway host
 - `antigravity.showStatusBar` — show remaining quota

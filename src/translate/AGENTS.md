@@ -15,7 +15,7 @@
 ## Local Contracts
 
 - Always send Gemini `contents[]` envelopes, including for Claude and GPT-OSS; never introduce Anthropic-style `messages` requests.
-- Preserve message order. Pair each tool result with the earlier tool call by name, using the ordered `callId` to sanitized-name map.
+- Preserve message order. Pair each tool result with the earlier tool call by name, using the ordered `callId` to sanitized-name map. When id forwarding is enabled, also carry the `callId` as `id` on both the `functionCall` and its `functionResponse` so the gateway's Anthropic adapter has a non-empty `tool_use.id`; Gemini-family requests omit it and keep pairing by name.
 - Synthesize globally unique tool-call ids for every emitted Gemini function call; VS Code uses them to correlate permissions and results across provider responses.
 - Gateway tool names must match `^[A-Za-z_][A-Za-z0-9_.:-]{0,63}$`; sanitization must remain reversible and collision-safe within a request.
 - Tool schemas pass two validators. Remove unsupported protobuf fields and recursive `x-*` vendor metadata (including `x-mcp-*`), keep lowercase JSON Schema types, retain property names verbatim, convert `const` to one-value `enum`, preserve dropped constraints as description hints, and fill empty object schemas for Claude.

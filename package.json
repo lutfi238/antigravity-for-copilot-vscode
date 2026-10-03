@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial: use Gemini and Claude models from your Google Antigravity account inside native Copilot Chat.",
-	"version": "0.15.3",
+  "version": "0.15.4",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -163,6 +163,21 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Show the model's reasoning. Rendered as Copilot Chat's own collapsible **Thinking…** block where VS Code supports it, and as a blockquote above the answer on builds that do not."
+        },
+        "antigravity.toolCallIds": {
+          "type": "string",
+          "enum": [
+            "off",
+            "claude",
+            "all"
+          ],
+          "default": "claude",
+          "markdownEnumDescriptions": [
+            "Never forward tool-call ids. Gemini pairs calls to results by name and does not need them.",
+            "Forward ids for Claude models only. The gateway's Anthropic adapter requires a non-empty `tool_use.id`, which it cannot always synthesize.",
+            "Forward ids for every model family, including Gemini."
+          ],
+          "markdownDescription": "Forward VS Code tool-call ids on the Gemini wire. Claude models need them because the gateway translates the request to Anthropic, which rejects a `tool_use` block without an id. Gemini pairs calls to results by name, so it is left untouched by default."
         },
         "antigravity.projectId": {
           "type": "string",

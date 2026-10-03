@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.4
+
+- Fix Claude models rejecting tool-using requests with
+  `messages.N.content.M.tool_use.id: Field required`. The gateway forwards Claude
+  requests to Anthropic, which requires a non-empty id on every `tool_use` block, but
+  the bridge sent Gemini `functionCall` parts carrying only a name. Tool-call ids are
+  now forwarded for Claude models, where Gemini already pairs calls to results by name
+  and keeps its existing shape. The new `antigravity.toolCallIds` setting selects
+  `claude` (default), `all`, or `off`.
+
 ## 0.15.3
 
 - Mention the Antigravity backend in web-search and image-generation tool descriptions and progress messages.

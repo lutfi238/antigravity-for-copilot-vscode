@@ -16,6 +16,12 @@ export interface BuildOptions {
 	reasoningEffort: ReasoningEffort;
 	/** Ask the model to return its reasoning. Off by default. */
 	includeThoughts?: boolean;
+	/**
+	 * Forward the VS Code tool-call id on the wire. Gemini pairs calls to results by
+	 * name, but the gateway's Gemini→Anthropic adapter needs a non-empty `tool_use.id`
+	 * for Claude models, so this is on for Claude and off for Gemini by default.
+	 */
+	sendToolCallIds: boolean;
 	signatures: SignatureCache;
 }
 
@@ -26,7 +32,7 @@ export interface BuildResult {
 
 export function buildRequest(options: BuildOptions): BuildResult {
 	const names = new ToolNameMap();
-	const contents = buildContents(options.messages, names, options.signatures);
+	const contents = buildContents(options.messages, names, options.signatures, options.sendToolCallIds);
 	const request: GeminiRequest = { contents };
 
 	const tools = buildTools(options.tools, names);
@@ -65,6 +71,7 @@ function buildContents(
 	messages: readonly vscode.LanguageModelChatRequestMessage[],
 	names: ToolNameMap,
 	signatures: SignatureCache,
+	sendToolCallIds: boolean,
 ): GeminiContent[] {
 	const callNames = new Map<string, string>();
 	const contents: GeminiContent[] = [];
@@ -93,7 +100,12 @@ function buildContents(
 				const wireName = names.register(item.name);
 				callNames.set(item.callId, wireName);
 				const part: GeminiPart = {
-					functionCall: { name: wireName, args: (item.input as Record<string, unknown>) ?? {} },
+					functionCall: {
+						name: wireName,
+						args: (item.input as Record<string, unknown>) ?? {},
+						// Omit the key entirely when disabled so the payload stays byte-identical.
+						...(sendToolCallIds && item.callId ? { id: item.callId } : {}),
+					},
 				};
 				const signature = signatures.get(item.callId);
 				if (signature) {
@@ -105,6 +117,7 @@ function buildContents(
 					functionResponse: {
 						name: callNames.get(item.callId) ?? item.callId,
 						response: { output: flattenToolResult(item.content) },
+						...(sendToolCallIds && item.callId ? { id: item.callId } : {}),
 					},
 				});
 			} else if (item instanceof vscode.LanguageModelDataPart) {
