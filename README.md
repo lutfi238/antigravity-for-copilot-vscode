@@ -5,7 +5,7 @@ A lightweight VS Code Language Model Provider for the Google Antigravity backend
 [![Install](https://img.shields.io/badge/VS_Code-Install-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=lutfi.antigravity-for-copilot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Pick **Gemini 3.8 Flash**, **Gemini 3.1 Pro**, **Claude Sonnet 4.6**, **Claude Opus 4.6** or
+Pick **Gemini 3.8 Flash**, **Gemini 3.1 Pro**, **Claude Sonnet 5.5**, **Claude Opus 5.5** or
 **GPT-OSS 120B** from the standard model picker and keep using native chat and Agent mode.
 Requests run on your Antigravity account rather than Copilot premium requests.
 
