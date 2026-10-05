@@ -15,6 +15,13 @@ export const config = {
 	showThinking(): boolean {
 		return get('showThinking', true);
 	},
+	/**
+	 * Forward tool-call ids on the Gemini wire. Claude needs them for the gateway's
+	 * Anthropic adapter; Gemini pairs calls to results by name and is left untouched.
+	 */
+	toolCallIds(): 'off' | 'claude' | 'all' {
+		return get<'off' | 'claude' | 'all'>('toolCallIds', 'claude');
+	},
 	projectId(): string | undefined {
 		return get('projectId', '').trim() || undefined;
 	},

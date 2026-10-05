@@ -172,6 +172,12 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		// A collapsed entry stands in for several tier-specific model ids.
 		const wireModel = resolveTier(spec, effort);
 
+		// Claude needs a non-empty tool_use id once the gateway forwards to Anthropic;
+		// Gemini pairs calls to results by name and keeps its known-good shape.
+		const toolCallIds = config.toolCallIds();
+		const sendToolCallIds =
+			toolCallIds === 'all' || (toolCallIds === 'claude' && spec.family === 'claude');
+
 		const { request, names } = buildRequest({
 			model: spec,
 			messages,
@@ -180,6 +186,7 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			modelOptions,
 			reasoningEffort: settingEffort === 'off' ? 'off' : effort,
 			includeThoughts: config.showThinking(),
+			sendToolCallIds,
 			signatures: this.signatures,
 		});
 
@@ -207,6 +214,8 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			effortFrom: effortSource,
 			modelConfigKeys: Object.keys(runtime.modelConfiguration ?? {}).join(',') || 'none',
 			thoughtsRequested: config.showThinking(),
+			toolCallIdsSetting: toolCallIds,
+			sendToolCallIds,
 			contents: request.contents.length,
 			tools: request.tools?.[0]?.functionDeclarations?.length ?? 0,
 			toolMode: options.toolMode,

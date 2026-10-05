@@ -13,7 +13,7 @@
 - `models.test.ts` covers discovery parsing, curation, tier collapsing/resolution, quota groups, and fallback models.
 - `schema.test.ts` covers schema normalization and tool-name sanitization/mapping.
 - `stream.test.ts` covers SSE framing and parsing.
-- `translate.test.ts` covers outgoing/incoming translation, tool calls/results, images, signatures, thinking, usage reporting, and finish behavior.
+- `translate.test.ts` covers outgoing/incoming translation, tool calls/results, images, signatures, thinking, usage reporting, and finish behavior, including tool-call id emission and its omission when disabled.
 - `agyCli.test.ts` covers native search prompt construction and stream-result validation without starting the CLI.
 - `agyImage.test.ts` covers native image prompt construction, stream artifact extraction, session artifact recovery, raster validation, and unexpected-tool rejection without starting the CLI.
 - `vscode-stub.ts` supplies the runtime classes/enums required by Vitest; `vitest.config.ts` aliases `vscode` to it.
