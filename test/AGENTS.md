@@ -11,6 +11,7 @@
 - `modelinfo.test.ts` covers picker configuration schemas and effort-source resolution.
 - `provider.test.ts` covers the provider response seam, including SSE consumption, usage-part forwarding, and unique synthesized tool-call ids.
 - `models.test.ts` covers discovery parsing, curation, tier collapsing/resolution, quota groups, and fallback models.
+- `statusBar.test.ts` covers grouped quota labels and missing/exhausted quota using a mocked status bar.
 - `schema.test.ts` covers schema normalization and tool-name sanitization/mapping.
 - `stream.test.ts` covers SSE framing and parsing.
 - `translate.test.ts` covers outgoing/incoming translation, tool calls/results, images, signatures, thinking, usage reporting, and finish behavior, including tool-call id emission and its omission when disabled.

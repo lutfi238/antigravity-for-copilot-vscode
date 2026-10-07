@@ -24,7 +24,7 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Context usage reporting** — completed gateway token usage feeds VS Code's Context Window
   widget, including its prompt breakdown when the installed VS Code build supports it.
 - **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
-- **Separate quota buckets** in the status bar: Gemini Pro, Gemini Flash, and Claude/GPT refill on different clocks.
+- **Quota groups** in the status bar: all Gemini models (including Pro and Flash) share one displayed group; Claude/GPT remains separate, matching the native Antigravity usage display. The percentage is the lowest reported remaining fraction within each group.
 - **Thinking Effort control** in the picker, next to the model, offering only the tiers the backend can serve.
 - **Multiple accounts**, switched manually.
 

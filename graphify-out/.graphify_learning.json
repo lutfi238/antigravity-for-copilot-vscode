@@ -1,0 +1,134 @@
+{
+  "generated_at": "2026-10-07T14:16:19.654039+00:00",
+  "nodes": {
+    "src_agycli_runagysearch": {
+      "code_fingerprint": "4041c56f02ddbb6e8fd4fa01c6a12ac35445714f0ac02752cfe34ad64d5a9d5e",
+      "label": "runAgySearch()",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/agyCli.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_agyimage_runagyimage": {
+      "code_fingerprint": "bb6280cfa34577e148df5ddc7082f1ea2861da7975382939a25da66001b11f47",
+      "label": "runAgyImage()",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/agyImage.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_api_client_gatewayclient": {
+      "code_fingerprint": "01cefeba06159a1352c53d6deff8dc7de0f94c902fd18e436245fa4f10c413ef",
+      "label": "GatewayClient",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/api/client.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_auth_store_accountstore": {
+      "code_fingerprint": "1cf919aa0f769a3d1b6b087f072a6284fc91876c468113f8600e11fe00ff50c0",
+      "label": "AccountStore",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/auth/store.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_auth_tokens_tokenmanager": {
+      "code_fingerprint": "28c1e3030d567480d938c591959785203f5bb0f83d52f3b69e9387cefa71a2dd",
+      "label": "TokenManager",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/auth/tokens.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_provider_antigravityprovider": {
+      "code_fingerprint": "718a093e41e7a4f00c0300881b9b70af38852d798971213b52b94d55c1140917",
+      "label": "AntigravityProvider",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/provider.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_translate_fromgemini_emitchunk": {
+      "code_fingerprint": "80f9a8c44c7d69169014ec718896b6496607ff35392bee3116c557ee9bf47106",
+      "label": "emitChunk()",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/translate/fromGemini.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_translate_togemini_buildrequest": {
+      "code_fingerprint": "316f0952f86837424f42273bdf27275b73df6a701b8a63ab9c4834de4e4b7440",
+      "label": "buildRequest()",
+      "last": "2026-10-07T13:10:53.382178+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-07T13:10:53.382178+00:00",
+          "outcome": "useful",
+          "q": "please understand using /graphify"
+        }
+      ],
+      "score": 0.998950596,
+      "source_file": "src/translate/toGemini.ts",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

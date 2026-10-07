@@ -13,7 +13,7 @@
 
 - Use native VS Code commands, QuickPick/message APIs, settings navigation, and status bar items.
 - Keep account switching and removal synchronized with `AccountStore` notifications and provider refresh.
-- Display quota as three backend buckets: Gemini Pro, Gemini Flash, and Claude/GPT.
+- Display two quota groups: Gemini (all models, including Pro and Flash) and Claude/GPT.
 - Respect `antigravity.showStatusBar` and dispose all UI resources through the extension context.
 - User-facing errors should be actionable and must not reveal credentials, tokens, prompts, or tool data.
 
@@ -25,7 +25,7 @@
 ## Verification
 
 - `npm run typecheck`
-- Exercise changed QuickPick, command, and status bar flows in an Extension Development Host; no direct UI unit tests currently exist.
+- `npm test -- test/statusBar.test.ts` verifies quota text with a mocked VS Code status bar; exercise real rendering, QuickPick and command flows in an Extension Development Host.
 
 ## Child DOX Index
 

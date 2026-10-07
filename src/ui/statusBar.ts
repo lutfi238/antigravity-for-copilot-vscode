@@ -23,11 +23,10 @@ export class QuotaStatusBar {
 	}
 
 	update(catalog: Catalog, email: string): void {
-		const pro = format(catalog.quota['gemini-pro']);
-		const flash = format(catalog.quota['gemini-flash']);
+		const gemini = format(catalog.quota.gemini);
 		const claude = format(catalog.quota.claude);
 
-		const summary = [pro && `Pro ${pro}`, flash && `Flash ${flash}`, claude && `Claude ${claude}`]
+		const summary = [gemini && `Gemini ${gemini}`, claude && `Claude ${claude}`]
 			.filter(Boolean)
 			.join(' · ');
 
@@ -44,8 +43,7 @@ export class QuotaStatusBar {
 		}
 		if (summary) {
 			lines.push(
-				`**Gemini Pro**: ${describe(catalog.quota['gemini-pro'])}`,
-				`**Gemini Flash**: ${describe(catalog.quota['gemini-flash'])}`,
+				`**Gemini (all models)**: ${describe(catalog.quota.gemini)}`,
 				`**Claude / GPT-OSS**: ${describe(catalog.quota.claude)}`,
 			);
 		} else {

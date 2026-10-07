@@ -11,4 +11,5 @@ media/**
 !media/icon.png
 test/**
 graphify-out/**
+docs/research/**
 vitest.config.ts

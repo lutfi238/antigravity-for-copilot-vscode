@@ -4,8 +4,8 @@ import { log } from '../log';
 
 export type Family = 'gemini' | 'claude' | 'gpt-oss';
 
-/** Quota is metered in three separate pools, not two: Flash refills far faster than Pro. */
-export type QuotaGroup = 'gemini-pro' | 'gemini-flash' | 'claude';
+/** Match the native client's usage groups: all Gemini models, and Claude/GPT. */
+export type QuotaGroup = 'gemini' | 'claude';
 
 export interface ModelSpec {
 	id: string;
@@ -334,7 +334,7 @@ function classify(modelId: string, displayName?: string): QuotaGroup | null {
 	if (!combined.includes('gemini')) {
 		return null;
 	}
-	return combined.includes('flash') ? 'gemini-flash' : 'gemini-pro';
+	return 'gemini';
 }
 
 /** Keeps the tightest constraint across the models sharing a bucket. */

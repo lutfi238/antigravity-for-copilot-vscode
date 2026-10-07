@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.6
+
+- Combine Gemini Pro, Flash, and other Gemini models into one Gemini quota indicator, matching the native Antigravity usage groups. Keep Claude/GPT separate and use the lowest reported remaining quota within each group.
+
 ## 0.15.4
 
 - Fix Claude models rejecting tool-using requests with
@@ -9,6 +13,7 @@
   now forwarded for Claude models, where Gemini already pairs calls to results by name
   and keeps its existing shape. The new `antigravity.toolCallIds` setting selects
   `claude` (default), `all`, or `off`.
+  Thanks to [@SamiMitwalli](https://github.com/SamiMitwalli) for this fix.
 
 ## 0.15.3
 

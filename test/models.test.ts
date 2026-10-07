@@ -68,12 +68,14 @@ describe('fetchCatalog', () => {
 		expect(catalog.models[0].name).toBe('Gemini 3.1 Pro (High)');
 	});
 
-	it('separates Pro, Flash and Claude into distinct quota buckets', async () => {
+	it('combines all Gemini models and keeps Claude/GPT separate without adding or averaging fractions', async () => {
 		const catalog = await fetchCatalog(
 			clientReturning({
 				models: {
 					'gemini-3.1-pro-high': { quotaInfo: { remainingFraction: 0.8 } },
 					'gemini-3-flash-medium': { quotaInfo: { remainingFraction: 0.95 } },
+					'gemini-3.1-flash-lite': { quotaInfo: { remainingFraction: 0.9 } },
+					'gemini-future-model': { quotaInfo: { remainingFraction: 0.85 } },
 					'claude-sonnet-4-6': { quotaInfo: { remainingFraction: 0.4 } },
 					'gpt-oss-120b-medium': { quotaInfo: { remainingFraction: 0.3 } },
 				},
@@ -82,25 +84,40 @@ describe('fetchCatalog', () => {
 			'proj',
 		);
 
-		expect(catalog.quota['gemini-pro']?.remainingFraction).toBe(0.8);
-		expect(catalog.quota['gemini-flash']?.remainingFraction).toBe(0.95);
+		expect(Object.keys(catalog.quota).sort()).toEqual(['claude', 'gemini']);
+		expect(catalog.quota.gemini?.remainingFraction).toBe(0.8);
+		expect(catalog.quota.gemini?.modelCount).toBe(4);
 		// GPT shares the Claude bucket, and the tightest constraint wins.
 		expect(catalog.quota.claude?.remainingFraction).toBe(0.3);
 		expect(catalog.quota.claude?.modelCount).toBe(2);
 	});
 
-	it('keeps the earliest reset time within a bucket', async () => {
+	it('keeps the earliest reset time across Gemini Pro and Flash', async () => {
 		const catalog = await fetchCatalog(
 			clientReturning({
 				models: {
 					'gemini-3.1-pro-high': { quotaInfo: { remainingFraction: 0.5, resetTime: '2026-09-05T00:00:00Z' } },
-					'gemini-3.1-pro-low': { quotaInfo: { remainingFraction: 0.9, resetTime: '2026-09-01T00:00:00Z' } },
+					'gemini-3-flash-medium': { quotaInfo: { remainingFraction: 0.9, resetTime: '2026-09-01T00:00:00Z' } },
 				},
 			}),
 			'op',
 			'proj',
 		);
-		expect(catalog.quota['gemini-pro']?.resetTime).toBe('2026-09-01T00:00:00Z');
+		expect(catalog.quota.gemini?.resetTime).toBe('2026-09-01T00:00:00Z');
+	});
+
+	it('retains reported Gemini quota when another Gemini model omits it or uses an internal alias', async () => {
+		const catalog = await fetchCatalog(
+			clientReturning({ models: {
+				'gemini-3.1-pro-high': {},
+				'Chat_123': { displayName: 'Gemini Flash', quotaInfo: { remainingFraction: 0 } },
+				'gemini-3-flash-low': {},
+			} }),
+			'op',
+			'proj',
+		);
+		expect(catalog.quota.gemini).toMatchObject({ remainingFraction: 0, modelCount: 3 });
+		expect(catalog.quota.claude).toBeUndefined();
 	});
 
 	it('falls back and flags itself when discovery throws', async () => {
@@ -121,7 +138,7 @@ describe('fetchCatalog', () => {
 			'op',
 			'proj',
 		);
-		expect(catalog.quota['gemini-pro']?.remainingFraction).toBe(1);
+		expect(catalog.quota.gemini?.remainingFraction).toBe(1);
 	});
 
 	it('still lists models the gateway reports no quota for', async () => {
@@ -132,7 +149,7 @@ describe('fetchCatalog', () => {
 		);
 		expect(catalog.isFallback).toBe(false);
 		expect(catalog.models).toHaveLength(1);
-		expect(catalog.quota['gemini-pro']?.remainingFraction).toBeUndefined();
+		expect(catalog.quota.gemini?.remainingFraction).toBeUndefined();
 	});
 });
 
