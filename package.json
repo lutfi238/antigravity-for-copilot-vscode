@@ -2,7 +2,7 @@
   "name": "antigravity-for-copilot",
   "displayName": "Antigravity Model Bridge",
   "description": "Unofficial Antigravity bridge for Copilot Chat: Gemini 3.8 Flash, Claude Sonnet/Opus 4.6/5.5, and GPT-OSS 120B, subject to account availability.",
-  "version": "0.15.15",
+  "version": "0.15.16",
   "publisher": "lutfi",
   "license": "MIT",
   "icon": "media/icon.png",

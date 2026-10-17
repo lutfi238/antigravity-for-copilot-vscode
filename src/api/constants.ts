@@ -42,7 +42,7 @@ export const DISCOVERY_ENDPOINTS = [ENDPOINT_DAILY, ENDPOINT_PROD] as const;
 /** Used when the gateway returns no project (e.g. Workspace accounts). */
 export const FALLBACK_PROJECT_ID = 'rising-fact-p41fc';
 
-const AGY_CLI_VERSION = '1.1.25';
+const AGY_CLI_VERSION = '1.4.0';
 const AGY_CLI_CHANGE_LIST = '964361259';
 
 /**

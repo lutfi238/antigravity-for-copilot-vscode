@@ -53,11 +53,15 @@ export class QuotaStatusBar {
 	private updateDisplay(): void {
 		const { catalog, email, details } = this.snapshot!;
 		const gemini = format(catalog.quota.gemini);
+		const argon = format(catalog.quota.argon);
 		const claude = format(catalog.quota.claude);
 		const plan = details.plan?.label;
 		const credits = details.plan?.aiCredits === undefined ? undefined : BigInt(details.plan.aiCredits).toLocaleString();
 		const summary = [
-			plan && shortPlan(plan), gemini && `Gemini ${gemini}`, claude && `Claude/GPT ${claude}`,
+			plan && shortPlan(plan),
+			gemini && `Gemini ${gemini}`,
+			argon && `Argon ${argon}`,
+			claude && `Claude/GPT ${claude}`,
 			credits !== undefined && `Credits ${credits}`,
 		].filter(Boolean).join(' · ');
 		this.item.text = summary ? `$(rocket) ${summary}` : '$(rocket) Antigravity';
@@ -71,6 +75,7 @@ export class QuotaStatusBar {
 		}
 		blocks.push(
 			quotaBlock('Gemini', catalog.quota.gemini),
+			quotaBlock('Gemini 4 Argon', catalog.quota.argon),
 			quotaBlock('Claude / GPT-OSS', catalog.quota.claude),
 			`**AI credits**  \nBalance: **${credits ?? (details.plan === undefined ? 'Loading…' : 'Not reported')}**  \nGoogle One account balance, separate from model quota.`,
 			'---',
@@ -80,7 +85,7 @@ export class QuotaStatusBar {
 		// Blank paragraphs and explicit hard breaks keep quota groups from running together.
 		this.item.tooltip = new vscode.MarkdownString(blocks.join('\n\n'));
 		this.item.accessibilityInformation = {
-			label: `Antigravity. Plan: ${plan ?? (details.plan === undefined ? 'loading' : 'not reported')}. Gemini: ${gemini ?? 'not reported'}. Claude and GPT-OSS: ${claude ?? 'not reported'}. AI credits: ${credits ?? (details.plan === undefined ? 'loading' : 'not reported')}.`,
+			label: `Antigravity. Plan: ${plan ?? (details.plan === undefined ? 'loading' : 'not reported')}. Gemini: ${gemini ?? 'not reported'}. Argon: ${argon ?? 'not reported'}. Claude and GPT-OSS: ${claude ?? 'not reported'}. AI credits: ${credits ?? (details.plan === undefined ? 'loading' : 'not reported')}.`,
 		};
 		this.render();
 	}

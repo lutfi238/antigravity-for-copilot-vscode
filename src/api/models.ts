@@ -5,8 +5,8 @@ import { Account } from '../auth/store';
 
 export type Family = 'gemini' | 'claude' | 'gpt-oss';
 
-/** Match the native client's usage groups: all Gemini models, and Claude/GPT. */
-export type QuotaGroup = 'gemini' | 'claude';
+/** Match the native client's usage groups: Gemini models, Argon models, and Claude/GPT. */
+export type QuotaGroup = 'gemini' | 'argon' | 'claude';
 
 export interface ModelSpec {
 	id: string;
@@ -171,7 +171,9 @@ function parseGeminiLine(id: string, name: string): GeminiLine | null {
 			? 'flash'
 			: /pro/.test(text)
 				? 'pro'
-				: null;
+				: /argon/.test(text)
+					? 'argon'
+					: null;
 	if (!line) {
 		return null;
 	}
@@ -319,6 +321,9 @@ export function resolveTierSpec(model: ModelSpec, effort: 'off' | 'low' | 'mediu
 
 function classify(modelId: string, displayName?: string): QuotaGroup | null {
 	const combined = `${modelId} ${displayName ?? ''}`.toLowerCase();
+	if (combined.includes('argon')) {
+		return 'argon';
+	}
 	if (combined.includes('claude') || combined.includes('gpt')) {
 		return 'claude';
 	}
@@ -387,7 +392,7 @@ export function spec(id: string, name: string): ModelSpec {
 				? { context: 131_072, output: 32_768 }
 				: lower.includes('image')
 					? { context: 66_000, output: 33_000 }
-					: lower.includes('flash')
+					: lower.includes('flash') || lower.includes('argon')
 						? { context: 1_048_576, output: 65_536 }
 						: { context: 1_048_576, output: 65_535 };
 

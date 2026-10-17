@@ -110,6 +110,29 @@ describe('fetchCatalog', () => {
 		expect(catalog.quota.claude?.modelCount).toBe(2);
 	});
 
+	it('separates Gemini, Argon, and Claude/GPT into three quota allocations', async () => {
+		const catalog = await fetchCatalog(
+			clientReturning({
+				models: {
+					'gemini-3.8-flash-high': { quotaInfo: { remainingFraction: 0.95 } },
+					'gemini-4-argon-high': { quotaInfo: { remainingFraction: 0.5, resetTime: '2026-10-24T00:00:00Z' } },
+					'gemini-4-argon-medium': { quotaInfo: { remainingFraction: 0.6 } },
+					'claude-sonnet-5-5-high': { quotaInfo: { remainingFraction: 0.4 } },
+				},
+			}),
+			'op',
+			'proj',
+		);
+
+		expect(Object.keys(catalog.quota).sort()).toEqual(['argon', 'claude', 'gemini']);
+		expect(catalog.quota.gemini?.remainingFraction).toBe(0.95);
+		expect(catalog.quota.gemini?.modelCount).toBe(1);
+		expect(catalog.quota.argon?.remainingFraction).toBe(0.5);
+		expect(catalog.quota.argon?.modelCount).toBe(2);
+		expect(catalog.quota.claude?.remainingFraction).toBe(0.4);
+		expect(catalog.quota.claude?.modelCount).toBe(1);
+	});
+
 	it('keeps the earliest reset time across Gemini Pro and Flash', async () => {
 		const catalog = await fetchCatalog(
 			clientReturning({

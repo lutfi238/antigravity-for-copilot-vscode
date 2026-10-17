@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.16
+
+- Separate Antigravity usage tracking into three distinct quota allocations in the status bar and model catalog: standard Gemini, Gemini 4 Argon, and Claude/GPT-OSS.
+- Update line parser to recognize `argon` as an eligible Gemini generation line and collapse effort tiers into a single `Gemini 4 Argon` picker entry when discovered.
+- Update CLI fingerprint User-Agent version to `1.4.0` to match the current Antigravity CLI release.
+- Avoid forcing synthetic Argon models when omitted by backend discovery to prevent 429 quota exhaustion errors.
+
 ## 0.15.15
 
 - Fix requests rejected by the gateway when tool schemas contain boolean or numeric enums and constants, including deeply nested properties. Preserve their types and express unsupported value restrictions as description hints while retaining string enums.
@@ -128,7 +135,6 @@
   per line, oldest retiring as a new one lands. Encoding the window means Gemini 3.8
   Flash appears and 3.5 leaves without a code change, and the same will hold for 3.9.
 
-
 ## 0.12.3
 
 - Correct the settings descriptions, which still described the superseded
@@ -140,7 +146,6 @@
   which entry is the unexpected one.
 - Refresh the README for Gemini 3.8 Flash, which the generation floor already picks up
   without a code change.
-
 
 ## 0.12.1
 
@@ -154,7 +159,6 @@
 - Match the picker to Antigravity own model list. Flash Lite is a line the backend can
   route to but that Antigravity never offers as a choice, so it no longer appears;
   `modelSelection: all` still includes it.
-
 
 ## 0.11.0
 

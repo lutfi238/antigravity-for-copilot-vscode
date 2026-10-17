@@ -18,10 +18,11 @@ generations and Gemini 3.1 Pro from the original snapshot are no longer in this
 account's returned list. The bridge's fallback roster now matches these six IDs.
 
 User-facing descriptions use Claude **4.6/5.5** to acknowledge changing availability;
-this does not create or rename discovered IDs. Gemini 4 Argon is advertised as
-Ultra-only in the user's native picker but was absent from this account's `agy models`
-result. The bridge creates no unavailable placeholder. A newly discovered Argon chat
-entry can appear on refresh using the gateway's ID; live Argon generation is unverified.
+this does not create or rename discovered IDs. Gemini 4 Argon is officially available
+for Google AI Pro (paid subscriptions) and Google AI Ultra accounts (`agy models`
+confirms `gemini-4-argon-high`, `gemini-4-argon-medium`, `gemini-4-argon-low`). The bridge
+creates no synthetic placeholder; when discovered, Argon is classified under its own
+dedicated quota pool and collapses into a single picker entry with its effort tiers.
 
 The original audit also predates response-level reasoning observations: Gemini Flash
 can return thought text on some requests, not only token counts. Consult the README

@@ -26,9 +26,9 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Context usage reporting** — completed gateway token usage feeds VS Code's Context Window
   widget, including its prompt breakdown when the installed VS Code build supports it.
 - **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
-- **Quota groups** in the status bar: all Gemini models (including Pro and Flash) share one displayed group; Claude/GPT remains separate, matching the native Antigravity usage display. The percentage is the lowest reported remaining fraction within each group.
-- **Account plan and clearer quota details**: the compact bar shows the reported plan alongside Gemini and Claude/GPT percentages. Hover for the account, separate quota/reset sections (local time), the number of models actually offered in the picker, and the quota update time. Plan metadata comes from the extension's authenticated account (`loadCodeAssist`, paid tier first), loads in the background, and is cached for five minutes. Missing metadata shows **Not reported**, never an inferred Free/Pro plan; unsuccessful lookups are cached for 30 seconds. Refreshing or changing accounts clears the plan cache.
-- **AI credit balance**: when account metadata reports Google One AI credits, the bar also shows `Credits …` and the tooltip includes a separate balance section. Credits share the plan metadata's five-minute cache; use **Antigravity: Refresh Models and Quota** to request fresh data. Missing/invalid balances show **Not reported**, while an explicit zero remains `0`. This is an account credit balance, separate from Gemini and Claude/GPT baseline percentages, and displaying it does not enable spending. See [Google's AI credits guide](https://antigravity.google/docs/cli/credits).
+- **Quota groups** in the status bar: three distinct allocations for standard Gemini (Flash and Pro), Gemini 4 Argon, and Claude/GPT models, matching native Antigravity usage pools. The percentage is the lowest reported remaining fraction within each group.
+- **Account plan and clearer quota details**: the compact bar shows the reported plan alongside Gemini, Argon, and Claude/GPT percentages. Hover for the account, separate quota/reset sections (local time), the number of models actually offered in the picker, and the quota update time. Plan metadata comes from the extension's authenticated account (`loadCodeAssist`, paid tier first), loads in the background, and is cached for five minutes. Missing metadata shows **Not reported**, never an inferred Free/Pro plan; unsuccessful lookups are cached for 30 seconds. Refreshing or changing accounts clears the plan cache.
+- **AI credit balance**: when account metadata reports Google One AI credits, the bar also shows `Credits …` and the tooltip includes a separate balance section. Credits share the plan metadata's five-minute cache; use **Antigravity: Refresh Models and Quota** to request fresh data. Missing/invalid balances show **Not reported**, while an explicit zero remains `0`. This is an account credit balance, separate from Gemini, Argon, and Claude/GPT baseline percentages, and displaying it does not enable spending. See [Google's AI credits guide](https://antigravity.google/docs/cli/credits).
 - **Thinking Effort control** in the picker, next to the model, offering only the tiers the backend can serve.
 - **Multiple accounts**, switched manually.
 
@@ -66,12 +66,7 @@ This is a dated account snapshot, not a fixed availability guarantee. Claude is 
 as **4.6/5.5** because availability can change; the actual picker always uses discovered
 names and IDs. The extension does not synthesize Claude 5.5 model IDs.
 
-**Gemini 4 Argon:** the native picker can advertise it as unavailable with an Ultra-plan
-notice, while the account's available-model catalogue omits it. The bridge adds no
-placeholder or guessed ID. If a later successful discovery returns an Argon chat model,
-it appears after **Antigravity: Refresh Models and Quota**, using the returned name and
-ID. Actual generation still depends on gateway compatibility and account access; it has
-not been live-tested here. The supported provider picker API has no disabled-model flag.
+**Gemini 4 Argon:** Google officially provides Gemini 4 Argon for Google AI Pro (paid subscriptions) and Google AI Ultra accounts. The bridge adds no placeholder or guessed ID. When a successful discovery returns an Argon chat model, it appears after **Antigravity: Refresh Models and Quota**, folded under its High, Medium, and Low effort tiers with a dedicated quota indicator. Generation depends on account allocation on Google's backend.
 
 The default `latest` filters non-chat/internal aliases, duplicate display names, Flash
 Lite, and older Gemini generations. If discovery returns several generations, the

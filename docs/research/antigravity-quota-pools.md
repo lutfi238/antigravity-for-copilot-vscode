@@ -73,3 +73,13 @@ Combine Gemini Pro and Gemini Flash in the status bar under one `Gemini` label. 
 When several gateway model entries contribute to the Gemini display, avoid assuming that matching percentages prove identity. Use the gateway fields and observed reset data defensively. If entries disagree because of stale or partial discovery data, a conservative aggregate (lowest remaining fraction and earliest valid reset) avoids overstating available quota, and the discrepancy should remain visible in logs for future gateway changes.
 
 Because Antigravity and its gateway are explicitly subject to capacity-driven changes, this conclusion should be revisited if the official Models page or official `/usage` output returns to separate Pro and Flash groups.
+
+## Update: Gemini 4 Argon as a distinct quota allocation (2026-10-17)
+
+With the introduction of Gemini 4 Argon (`gemini-4-argon`), Antigravity tracks three separate usage allocations:
+
+1. **`Gemini`**: Standard Google Gemini reasoning models (Gemini Flash and Pro) with five-hour rolling and weekly limits.
+2. **`Argon`**: Dedicated weekly quota pool for Gemini 4 Argon reasoning models, ensuring heavy agentic tasks do not deplete routine Flash quota.
+3. **`Claude / GPT-OSS`**: Partner models (Anthropic Claude and GPT-OSS) tracked under their own usage limit.
+
+The extension displays all three quota groups independently in the status bar and tooltip whenever reported by the backend.

@@ -86,6 +86,19 @@ describe('QuotaStatusBar', () => {
 		expect(tooltip).toContain('\n\n**Claude / GPT-OSS**');
 	});
 
+	it('renders all three quota allocations when Argon, Gemini and Claude are reported', () => {
+		bar.update({ models: Array(25).fill({}), quota: {
+			gemini: { remainingFraction: 0.95, resetTime: '2026-10-18T00:00:00Z', modelCount: 6 },
+			argon: { remainingFraction: 0.5, resetTime: '2026-10-24T00:00:00Z', modelCount: 3 },
+			claude: { remainingFraction: 0.8, resetTime: '2026-10-19T00:00:00Z', modelCount: 6 },
+		}, isFallback: false }, 'test@example.com', { plan: { label: 'Pro' } });
+
+		expect(item.text).toBe('$(rocket) Pro · Gemini 95% · Argon 50% · Claude/GPT 80%');
+		expect(item.tooltip).toMatchObject({ value: expect.stringContaining('**Gemini**  \nRemaining: **95%**') });
+		expect(item.tooltip).toMatchObject({ value: expect.stringContaining('**Gemini 4 Argon**  \nRemaining: **50%**') });
+		expect(item.tooltip).toMatchObject({ value: expect.stringContaining('**Claude / GPT-OSS**  \nRemaining: **80%**') });
+	});
+
 	it('updates plan in the background without changing quota freshness', () => {
 		const time = Date.parse('2026-10-14T12:00:00Z');
 		bar.update({ models: [], quota: {}, isFallback: false }, 'test@example.com', { updatedAt: time });
