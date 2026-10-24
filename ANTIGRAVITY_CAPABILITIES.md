@@ -340,9 +340,14 @@ registered through the VS Code language-model tool API:
 
 - `antigravity_code_search` remains a future option; the installed Copilot
   build already provides `copilot_searchCodebase`, so it is not duplicated here.
-- `antigravity_web_search`: starts `agy --print --output-format stream-json`,
-  confines the prompt to one native `search_web` call, and returns its grounded
-  markdown/source URLs.
+- `antigravity_web_search`: starts `agy --agent antigravity-copilot-search-<nonce> --print --output-format stream-json`
+  in an isolated temporary project. On agy 1.3.4 or newer, the custom main agent's
+  runtime allowlist contains only `search_web`, with default components and ambient
+  customizations/MCP disabled. A fresh nonce avoids shadowing by a global agent. The
+  prompt requests one call; the completed stream must report that exact agent and
+  exactly one search with no unexpected tools, malformed events, or output beyond
+  the verification limit. The bridge returns the grounded markdown/source URLs only
+  after those checks pass.
 
 The extension’s existing schema sanitizer, tool-name mapping, cancellation, and
 tool-result round trip carry the declaration. The execution side remains in the

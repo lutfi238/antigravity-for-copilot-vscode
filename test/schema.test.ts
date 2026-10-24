@@ -49,6 +49,26 @@ describe('sanitizeSchema', () => {
 		expect(out).toEqual({ type: 'string', enum: ['a'] });
 	});
 
+	it('drops every keyword outside the protobuf allowlist at every schema depth', () => {
+		const out = sanitizeSchema({
+			type: 'object',
+			unevaluatedProperties: false,
+			customAnnotation: 'rejected by protobuf',
+			properties: {
+				tags: {
+					type: 'array',
+					uniqueItems: true,
+					items: { type: 'string', writeOnly: true },
+				},
+			},
+		}) as any;
+
+		expect(out).not.toHaveProperty('unevaluatedProperties');
+		expect(out).not.toHaveProperty('customAnnotation');
+		expect(out.properties.tags).not.toHaveProperty('uniqueItems');
+		expect(out.properties.tags.items).toEqual({ type: 'string' });
+	});
+
 	it('strips MCP vendor extensions from nested schema nodes', () => {
 		// VS Code MCP tools can attach x-mcp-* metadata to a property schema. The
 		// Antigravity protobuf Schema has no field for vendor extensions, even when
@@ -235,6 +255,22 @@ describe('ToolNameMap', () => {
 		expect(third).not.toBe(first);
 		expect(map.resolve(third)).toBe('a|b');
 		expect(map.resolve(first)).toBe('a/b');
+	});
+
+	it('keeps looking when a literal tool already occupies the suffixed candidate', () => {
+		const map = new ToolNameMap();
+		const first = map.register('a/b');
+		const literal = map.register('a_b_2');
+		const third = map.register('a_b');
+
+		expect(first).toBe('a_b');
+		expect(literal).toBe('a_b_2');
+		expect(third).not.toBe(first);
+		expect(third).not.toBe(literal);
+		expect(new Set([first, literal, third]).size).toBe(3);
+		expect(map.resolve(first)).toBe('a/b');
+		expect(map.resolve(literal)).toBe('a_b_2');
+		expect(map.resolve(third)).toBe('a_b');
 	});
 
 	it('passes unknown inbound names through unchanged', () => {

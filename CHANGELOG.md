@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Run Web Search through an isolated temporary custom main agent on agy 1.3.4 or newer. Its runtime allowlist exposes only `search_web`, with default components and ambient customizations/MCP disabled; use a fresh nonce per run so a global custom agent cannot shadow it, and reject output from any other agent. Preflight version checks fail before starting any agent turn, proved via an integration test with an executable binary. Never fall back to the unrestricted default agent, including after cancellation during workspace setup. Continue validating the completed transcript, rejecting repeated searches, unexpected tools/subagents, malformed events, or output beyond the verification limit.
+- Sanitize tool schemas with an explicit gateway allowlist so unknown JSON Schema or MCP keywords cannot reach the protobuf validator, and keep sanitized tool names unique even when literal names occupy generated collision suffixes.
+- Dispose OAuth cancellation listeners and timeout timers promptly upon settlement (success, error, timeout, or cancellation) to prevent timer leaks. Clean up and handle early or in-flight CLI cancellation consistently across search sidecar processes. Update `undici` to 7.30.1.
+
 ## 0.15.17
 
 - Show standard Gemini's five-hour and weekly quota separately, with each limit's own remaining percentage and local reset time. Read the backend's explicit quota-summary buckets instead of assigning a period to model-discovery percentages.

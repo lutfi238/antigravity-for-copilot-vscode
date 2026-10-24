@@ -205,11 +205,17 @@ backend behaviour rather than a fault in this extension.
 
 Antigravity Web Search is a VS Code tool backed by the locally installed `agy`
 CLI. Select it in the Agent tool picker or reference it as `#antigravityWebSearch`.
-The bridge starts a bounded headless `agy` run, instructs it to execute exactly
-one native `search_web` call, and returns the resulting markdown answer and
-source URLs. It does not reuse the Gaussian/Codex hosted search marker.
+The bridge starts a bounded headless `agy` run with an isolated temporary custom
+main agent whose declarative runtime allowlist contains only `search_web`. Default
+components and ambient workspace customizations, MCP servers, and subagents are
+disabled; the bridge never falls back to the unrestricted default agent. It also
+validates the completed transcript, rejecting repeated searches, any unexpected
+tool, or malformed/oversized output before returning the markdown answer and source
+URLs. It does not reuse the Gaussian/Codex hosted search marker.
 
-The CLI must already be authenticated. Set `antigravity.cliPath` if `agy` is
+This execution-time isolation requires **agy 1.3.4 or newer**: earlier releases could
+silently fall back to the default agent when `--agent` did not resolve. The CLI must already
+be authenticated. Set `antigravity.cliPath` if `agy` is
 not on PATH; on Windows the standard `%LOCALAPPDATA%\agy\bin\agy.EXE`
 installation is detected automatically. Search runs consume the CLI's own
 Antigravity quota and remain subject to its permissions and network policy.

@@ -21,7 +21,8 @@
 - `stream.test.ts` covers SSE framing and parsing.
 - `translate.test.ts` covers outgoing/incoming translation, tool calls/results, images, signatures, thinking, usage reporting, and finish behavior, including tool-call id emission and its omission when disabled.
 - Tool-guidance regressions cover opt-out, family/tool scoping, preservation of input/history and generation settings, and multiple tool calls with signature replay. Provider tests verify setting propagation and guidance/call-count diagnostics.
-- `agyCli.test.ts` covers native search prompt construction and stream-result validation without starting the CLI.
+- `agyCli.test.ts` covers native search prompt construction, the isolated custom-agent runtime allowlist, spawn arguments/workspace cleanup, and stream-result validation without starting the CLI.
+- `agyCliIntegration.test.ts` covers end-to-end integration with a real executable binary without mocks, proving unsupported versions are rejected before any agent turn can start, and proving isolated custom-agent execution and cleanup.
 - `agyImage.test.ts` covers native image prompt construction, legacy and image-generator stream evidence, delegated identity/session validation, scoped artifact recovery, raster validation, and failure classification without starting the CLI.
 - `imageArtifacts.test.ts` covers persisted preview bytes/URLs, redirected-directory rejection, tool-result reference preservation, and current-turn final-answer previews including duplicates, cancellation, and failures.
 - `vscode-stub.ts` supplies the runtime classes/enums required by Vitest; `vitest.config.ts` aliases `vscode` to it.

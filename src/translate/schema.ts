@@ -47,8 +47,30 @@ const UNSUPPORTED_KEYWORDS = new Set<string>([
 	'doNotSuggest',
 ]);
 
-/** Keys inside these are author-chosen names, never keywords. */
-const NAME_KEYED_CONTAINERS = new Set(['properties', 'patternProperties']);
+/**
+ * Fields accepted by the gateway's Schema protobuf. Everything else is dropped:
+ * passing an unfamiliar JSON Schema keyword is enough to reject the whole request.
+ * Composition and `type` need special handling below but are listed here to make the
+ * complete accepted input vocabulary explicit.
+ */
+const SUPPORTED_KEYWORDS = new Set([
+	'type',
+	'description',
+	'enum',
+	'properties',
+	'required',
+	'items',
+	'nullable',
+	'minimum',
+	'maximum',
+	'propertyOrdering',
+	'allOf',
+	'oneOf',
+	'anyOf',
+]);
+
+/** Keys inside this container are author-chosen names, never schema keywords. */
+const NAME_KEYED_CONTAINERS = new Set(['properties']);
 
 /** Claude's validated tool mode rejects an object schema with no properties. */
 const PLACEHOLDER = '_placeholder';
@@ -139,6 +161,11 @@ function clean(node: unknown): unknown {
 			continue;
 		}
 
+		// This is deliberately an allowlist, not merely a list of keywords seen
+		// failing before. New MCP/JSON Schema annotations must not reach protobuf.
+		if (!SUPPORTED_KEYWORDS.has(key)) {
+			continue;
+		}
 		out[key] = clean(value);
 	}
 
@@ -264,10 +291,14 @@ export class ToolNameMap {
 			return existing;
 		}
 
-		let wire = sanitizeToolName(original);
-		if (this.fromWire.has(wire) && this.fromWire.get(wire) !== original) {
-			// Two different tools sanitized to the same name; disambiguate.
-			wire = disambiguate(wire, this.fromWire.size);
+		const base = sanitizeToolName(original);
+		let wire = base;
+		let index = this.fromWire.size;
+		while (this.fromWire.has(wire)) {
+			// A previously registered literal name may already occupy the first
+			// suffixed candidate too. Keep looking instead of overwriting its reverse
+			// mapping and routing an inbound call to the wrong tool.
+			wire = disambiguate(base, index++);
 		}
 
 		this.toWire.set(original, wire);
