@@ -58,6 +58,13 @@ export class EventEmitter<T> {
 	}
 }
 
+export class Disposable {
+	constructor(private readonly callOnDispose: () => unknown) {}
+	dispose(): unknown {
+		return this.callOnDispose();
+	}
+}
+
 export class LanguageModelPromptTsxPart {
 	constructor(public value: unknown) {}
 }

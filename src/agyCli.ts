@@ -76,6 +76,9 @@ export async function runAgySearch(query: string, token: vscode.CancellationToke
 	if (normalized.length > MAX_QUERY_LENGTH) {
 		throw new Error(`Search query is too long (maximum ${MAX_QUERY_LENGTH} characters).`);
 	}
+	if (token.isCancellationRequested) {
+		throw new vscode.CancellationError();
+	}
 
 	const command = resolveAgyCommand();
 	const child = spawn(
@@ -105,6 +108,9 @@ export async function runAgySearch(query: string, token: vscode.CancellationToke
 	const cancellation = token.onCancellationRequested(() => {
 		child.kill();
 	});
+	if (token.isCancellationRequested) {
+		child.kill();
+	}
 
 	try {
 		const result = await new Promise<AgySearchStreamResult>((resolve, reject) => {
@@ -119,6 +125,10 @@ export async function runAgySearch(query: string, token: vscode.CancellationToke
 			child.once('error', (error: NodeJS.ErrnoException) => {
 				if (settled) return;
 				settled = true;
+				if (token.isCancellationRequested) {
+					reject(new vscode.CancellationError());
+					return;
+				}
 				if (error.code === 'ENOENT') {
 					reject(new Error(`Antigravity CLI was not found at "${command}". Set antigravity.cliPath if needed.`));
 					return;
@@ -129,6 +139,10 @@ export async function runAgySearch(query: string, token: vscode.CancellationToke
 			child.once('close', (code) => {
 				if (settled) return;
 				settled = true;
+				if (token.isCancellationRequested) {
+					reject(new vscode.CancellationError());
+					return;
+				}
 				const parsed = parseAgySearchStream(lines);
 				if (parsed.status === 'SUCCESS' && parsed.sawSearchWeb && !parsed.toolError && parsed.response?.trim()) {
 					resolve({ ...parsed, response: parsed.response.slice(0, MAX_RESULT_LENGTH) });

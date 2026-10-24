@@ -202,23 +202,98 @@ async function listen(op: string, expectedState: string): Promise<CallbackServer
 
 	return {
 		waitForCode(cancellation) {
-			return Promise.race([
-				pending,
-				new Promise<string>((_, reject) => {
-					const sub = cancellation.onCancellationRequested(() => {
-						sub.dispose();
-						reject(new vscode.CancellationError());
-					});
-				}),
-				new Promise<string>((_, reject) =>
-					setTimeout(() => reject(new Error('Sign-in timed out after 5 minutes')), 5 * 60_000).unref?.(),
-				),
-			]);
+			return waitForCode(pending, cancellation);
 		},
 		close() {
 			server.close();
 		},
 	};
+}
+
+export function waitForCode(
+	pending: Promise<string>,
+	cancellation: vscode.CancellationToken,
+	timeoutMs = 5 * 60_000,
+): Promise<string> {
+	pending.catch(() => {});
+	if (cancellation.isCancellationRequested) {
+		return Promise.reject(new vscode.CancellationError());
+	}
+	return new Promise<string>((resolve, reject) => {
+		let settled = false;
+		let disposed = false;
+		let sub: vscode.Disposable | undefined;
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+
+		const cleanup = () => {
+			settled = true;
+			if (timeout !== undefined) {
+				clearTimeout(timeout);
+			}
+			if (!disposed && sub !== undefined) {
+				disposed = true;
+				try {
+					sub.dispose();
+				} catch {
+					// Prevent disposal exceptions from corrupting resolution
+				}
+			}
+		};
+
+		timeout = setTimeout(() => {
+			if (settled) return;
+			cleanup();
+			reject(new Error(formatTimeoutMessage(timeoutMs)));
+		}, timeoutMs);
+		timeout.unref?.();
+
+		try {
+			sub = cancellation.onCancellationRequested(() => {
+				if (settled) return;
+				cleanup();
+				reject(new vscode.CancellationError());
+			});
+			if (settled || cancellation.isCancellationRequested) {
+				const wasSettled = settled;
+				cleanup();
+				if (!wasSettled) {
+					reject(new vscode.CancellationError());
+				}
+				return;
+			}
+
+			pending.then(
+				(code) => {
+					if (settled) return;
+					cleanup();
+					resolve(code);
+				},
+				(error) => {
+					if (settled) return;
+					cleanup();
+					reject(error);
+				},
+			);
+		} catch (err) {
+			cleanup();
+			reject(err);
+		}
+	});
+}
+
+export function formatTimeoutMessage(timeoutMs: number): string {
+	if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+		return 'Sign-in timed out immediately';
+	}
+	if (timeoutMs % 60_000 === 0) {
+		const minutes = timeoutMs / 60_000;
+		return `Sign-in timed out after ${minutes} minute${minutes === 1 ? '' : 's'}`;
+	}
+	if (timeoutMs % 1_000 === 0) {
+		const seconds = timeoutMs / 1_000;
+		return `Sign-in timed out after ${seconds} second${seconds === 1 ? '' : 's'}`;
+	}
+	return `Sign-in timed out after ${timeoutMs}ms`;
 }
 
 function respond(res: http.ServerResponse, title: string, detail: string): void {

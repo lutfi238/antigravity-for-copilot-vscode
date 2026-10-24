@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildAgySearchPrompt, parseAgySearchStream } from '../src/agyCli';
+import * as vscode from 'vscode';
+import { buildAgySearchPrompt, parseAgySearchStream, runAgySearch } from '../src/agyCli';
 
 describe('agyCli search bridge', () => {
 	it('builds a single-tool search prompt without losing the query', () => {
@@ -61,5 +62,13 @@ describe('agyCli search bridge', () => {
 
 		expect(result.sawSearchWeb).toBe(false);
 		expect(result.status).toBe('SUCCESS');
+	});
+
+	it('throws CancellationError immediately if token is pre-cancelled', async () => {
+		const token: vscode.CancellationToken = {
+			isCancellationRequested: true,
+			onCancellationRequested: () => ({ dispose() {} }),
+		};
+		await expect(runAgySearch('query', token)).rejects.toBeInstanceOf(vscode.CancellationError);
 	});
 });
