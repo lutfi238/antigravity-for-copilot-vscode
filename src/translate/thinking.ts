@@ -1,12 +1,13 @@
 import { ModelSpec } from '../api/models';
 import { GeminiGenerationConfig } from './types';
 
-export type ReasoningEffort = 'off' | 'low' | 'medium' | 'high';
+export type ReasoningEffort = 'off' | 'low' | 'medium' | 'high' | 'xhigh';
 
 const BUDGETS: Record<Exclude<ReasoningEffort, 'off'>, number> = {
 	low: 8_192,
 	medium: 16_384,
 	high: 32_768,
+	xhigh: 32_768,
 };
 
 /**

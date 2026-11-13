@@ -42,8 +42,8 @@ export const DISCOVERY_ENDPOINTS = [ENDPOINT_DAILY, ENDPOINT_PROD] as const;
 /** Used when the gateway returns no project (e.g. Workspace accounts). */
 export const FALLBACK_PROJECT_ID = 'rising-fact-p41fc';
 
-const AGY_CLI_VERSION = '1.4.0';
-const AGY_CLI_CHANGE_LIST = '964361259';
+const AGY_CLI_VERSION = '1.5.7';
+const AGY_CLI_CHANGE_LIST = '1019769835';
 
 /**
  * A single stable client identity, matching the Antigravity CLI's own.

@@ -141,11 +141,17 @@ console.log(JSON.stringify({ event: 'result', result: { status: 'SUCCESS', respo
 `;
 				fs.writeFileSync(fakeAgyPath, script, { mode: 0o755 });
 			}
+			// Warm up the newly compiled binary so Windows Defender's first-execution scan
+			// completes during setup rather than racing the first test's 5s timeout.
+			execFileSync(fakeAgyPath, ['--version'], {
+				env: { ...process.env, FAKE_AGY_LOG: '' },
+				timeout: 25_000,
+			});
 		} catch (error) {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 			throw error;
 		}
-	});
+	}, 30_000);
 
 	afterEach(() => {
 		vi.restoreAllMocks();

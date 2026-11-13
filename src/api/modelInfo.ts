@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { ModelSpec } from './models';
+import { ModelSpec, ThinkingTier } from './models';
 
-export type Effort = 'low' | 'medium' | 'high';
+export type Effort = ThinkingTier;
 
 /**
  * Per-model controls rendered beside the model in the picker.
@@ -39,18 +39,21 @@ export type ProviderChatInformation = vscode.LanguageModelChatInformation & {
 	readonly configurationSchema?: ModelConfigurationSchema;
 };
 
-const EFFORT_ORDER: Effort[] = ['low', 'medium', 'high'];
+const EFFORT_ORDER: Effort[] = ['low', 'medium', 'high', 'xhigh'];
+const NUMERIC_BUDGET_EFFORTS: Effort[] = ['low', 'medium', 'high'];
 
 const EFFORT_LABEL: Record<Effort, string> = {
 	low: 'Low',
 	medium: 'Medium',
 	high: 'High',
+	xhigh: 'XHigh',
 };
 
 const EFFORT_DESCRIPTION: Record<Effort, string> = {
 	low: 'Fastest and cheapest. Least thinking before answering.',
 	medium: 'Balanced thinking for everyday work.',
 	high: 'Most thinking. Best for hard reasoning, slowest and most quota.',
+	xhigh: 'Extra-high thinking tier for models that publish an XHigh variant.',
 };
 
 /**
@@ -65,7 +68,7 @@ export function availableEfforts(model: ModelSpec): Effort[] {
 		return EFFORT_ORDER.filter((effort) => model.tierVariants![effort]);
 	}
 	if (model.thinkingStyle === 'numeric-budget') {
-		return [...EFFORT_ORDER];
+		return [...NUMERIC_BUDGET_EFFORTS];
 	}
 	return [];
 }
@@ -89,7 +92,11 @@ export function buildConfigurationSchema(
 			enumItemLabels: efforts.map((effort) => EFFORT_LABEL[effort]),
 			enumDescriptions: efforts.map((effort) => EFFORT_DESCRIPTION[effort]),
 			// Start on the user's configured preference, but only if this model serves it.
-			default: efforts.includes(defaultEffort) ? defaultEffort : efforts[efforts.length - 1],
+			default: efforts.includes(defaultEffort)
+				? defaultEffort
+				: efforts.includes('high')
+					? 'high'
+					: efforts[efforts.length - 1],
 			group: 'navigation',
 		};
 	}
@@ -118,7 +125,9 @@ export type EffortSource =
 	| 'setting';
 
 function asEffort(value: unknown): Effort | undefined {
-	return value === 'low' || value === 'medium' || value === 'high' ? value : undefined;
+	return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh'
+		? value
+		: undefined;
 }
 
 /** Pulls an effort out of a bag, tolerating the several shapes it has been seen in. */
