@@ -36,10 +36,10 @@ export interface GeminiGenerationConfig {
 	topP?: number;
 	topK?: number;
 	stopSequences?: string[];
-	/** Gemini 3 takes `thinkingLevel`; Claude takes a numeric `thinkingBudget`. */
+	/** Gemini 3+ takes `thinkingLevel`; Claude takes a numeric `thinkingBudget`. */
 	thinkingConfig?: {
 		thinkingBudget?: number;
-		thinkingLevel?: 'low' | 'medium' | 'high';
+		thinkingLevel?: 'low' | 'medium' | 'high' | 'xhigh';
 		includeThoughts?: boolean;
 	};
 }

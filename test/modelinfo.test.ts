@@ -31,8 +31,25 @@ describe('availableEfforts', () => {
 		expect(availableEfforts(spec('claude-opus-4-6-thinking', 'x'))).toEqual(['low', 'medium', 'high']);
 	});
 
+	it('includes xhigh when a collapsed model publishes an XHigh variant', () => {
+		const hydrogen = collapseTiers([
+			spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen (High)'),
+			spec('gemini-4-hydrogen-xhigh', 'Gemini 4 Hydrogen (XHigh)'),
+			spec('gemini-4-hydrogen-medium', 'Gemini 4 Hydrogen (Medium)'),
+			spec('gemini-4-hydrogen-low', 'Gemini 4 Hydrogen (Low)'),
+		])[0];
+		expect(availableEfforts(hydrogen)).toEqual(['low', 'medium', 'high', 'xhigh']);
+		expect(buildConfigurationSchema(hydrogen, 983_040, 'medium')?.properties.reasoningEffort).toMatchObject({
+			enum: ['low', 'medium', 'high', 'xhigh'],
+			enumItemLabels: ['Low', 'Medium', 'High', 'XHigh'],
+			default: 'medium',
+		});
+		expect(buildConfigurationSchema(flash, 983_040, 'xhigh')?.properties.reasoningEffort?.default).toBe('high');
+	});
+
 	it('offers none where there is nothing to vary', () => {
 		expect(availableEfforts(spec('gpt-oss-120b-medium', 'x'))).toEqual([]);
+		expect(availableEfforts(spec('gemini-pro-orchestrator-g1-pro', 'Orchestrator (Argon)'))).toEqual([]);
 	});
 });
 
@@ -99,6 +116,7 @@ describe('resolveEffort', () => {
 
 	it('accepts the alternate shapes the value has been seen in', () => {
 		expect(resolveEffort({ modelConfiguration: { thinkingEffort: 'high' } }, 'low').effort).toBe('high');
+		expect(resolveEffort({ modelConfiguration: { reasoningEffort: 'xhigh' } }, 'low').effort).toBe('xhigh');
 		expect(resolveEffort({ modelConfiguration: { reasoning: { effort: 'high' } } }, 'low').effort).toBe('high');
 		expect(resolveEffort({ modelConfiguration: { thinking: { effort: 'low' } } }, 'high').effort).toBe('low');
 	});

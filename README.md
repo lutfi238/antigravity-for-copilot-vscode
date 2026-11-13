@@ -87,7 +87,8 @@ Antigravity addresses each effort tier as its own model id, so discovery reports
 
 By default they are folded into one entry with a **Thinking Effort** control beside the
 model in the picker, the way Copilot's own models work. Only tiers reported by
-discovery are offered. If a model has only High and Low variants, its
+discovery are offered (including **XHigh** when a model such as Gemini 4 Hydrogen
+publishes an `xhigh` variant). If a model has only High and Low variants, its
 control does not offer Medium.
 
 `antigravity.reasoningEffort` sets the starting value; whatever is chosen in the picker

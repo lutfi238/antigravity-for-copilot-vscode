@@ -2,6 +2,8 @@
 
 ## 0.15.18
 
+- Update the CLI fingerprint `User-Agent` to `1.5.7` (`cl=1019769835`) so gateway discovery includes `Orchestrator (Argon)` (`gemini-pro-orchestrator-g1-pro`) when available to the account, while filtering internal worker (`*-worker-*`) and disabled (`disabled: true` / `*-disabled`) entries.
+- Recognize `xhigh` (`(XHigh)`) effort tiers so `Gemini 4 Hydrogen` collapses into a single picker entry with `Low`, `Medium`, `High`, and `XHigh` Thinking Effort options instead of appearing twice.
 - Restrict Web Search to an isolated temporary custom agent with a fresh name per run, a `search_web` tool allowlist, and inherited customizations/MCP disabled. Web Search now requires **agy 1.3.4 or newer**, checked before starting an agent turn.
 - Verify the search agent's identity and exactly one native search invocation. Reject unexpected tools/subagents, malformed transcripts, and oversized output; clean up temporary workspaces after success, failure, or cancellation.
 - Sanitize tool schemas with an explicit gateway allowlist to prevent unknown JSON Schema and MCP keywords from reaching the protobuf validator.

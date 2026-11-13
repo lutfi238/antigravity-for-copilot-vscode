@@ -510,6 +510,46 @@ describe('provider effort, cancellation and latency diagnostics', () => {
 		expect(body.request.messages).toBeUndefined();
 	});
 
+	it('collapses Hydrogen xhigh into one picker entry and routes Orchestrator (Argon) without duplicate Hydrogen rows', async () => {
+		const h = harness();
+		h.client.postJson.mockResolvedValue({ models: {
+			'gemini-4-hydrogen-high': { displayName: 'Gemini 4 Hydrogen (High)' },
+			'gemini-4-hydrogen-xhigh': { displayName: 'Gemini 4 Hydrogen (XHigh)' },
+			'gemini-4-hydrogen-medium': { displayName: 'Gemini 4 Hydrogen (Medium)' },
+			'gemini-4-hydrogen-low': { displayName: 'Gemini 4 Hydrogen (Low)' },
+			'gemini-pro-orchestrator-g1-pro': { displayName: 'Orchestrator (Argon)' },
+			'gemini-flash-worker-agy': { displayName: 'Gemini Flash' },
+			'gemini-4-carbon-disabled': { displayName: 'Gemini 4 Carbon', disabled: true },
+		} });
+		const discovered = await h.discover();
+		expect(discovered.map(m => m.name)).toEqual(['Gemini 4 Hydrogen', 'Orchestrator (Argon)']);
+		const [hydrogen, orchestrator] = discovered;
+		expect(hydrogen.configurationSchema?.properties.reasoningEffort?.enum).toEqual(['low', 'medium', 'high', 'xhigh']);
+		expect(orchestrator.configurationSchema).toBeUndefined();
+
+		await h.send(hydrogen, 'xhigh');
+		expect(h.client.post.mock.calls[0][0].body).toMatchObject({
+			model: 'gemini-4-hydrogen-xhigh',
+			request: {
+				generationConfig: {
+					maxOutputTokens: 65_536,
+					thinkingConfig: { includeThoughts: true, thinkingLevel: 'xhigh' },
+				},
+			},
+		});
+
+		await h.send(orchestrator, 'high');
+		expect(h.client.post.mock.calls[1][0].body).toMatchObject({
+			model: 'gemini-pro-orchestrator-g1-pro',
+			request: {
+				generationConfig: {
+					maxOutputTokens: 65_536,
+					thinkingConfig: { includeThoughts: true },
+				},
+			},
+		});
+	});
+
 	it('filters the observed old Flash IDs from discovery by default, with all as explicit opt-in', async () => {
 		const h = harness();
 		h.client.postJson.mockResolvedValue({ models: {
