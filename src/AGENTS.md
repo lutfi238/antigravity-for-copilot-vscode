@@ -28,6 +28,7 @@
 - When Agy omits `output_path`, recover only recent raster files under the stream's validated parent `conversation_id` or child ID explicitly linked to the verified `image-generator`; never scan the whole user home or unrelated sessions.
 - Do not force the Agy terminal `--sandbox` flag from the extension. Preserve the CLI's permission behavior, confine the requested image route, validate completed execution, and retain VS Code confirmation without adding auto-approval flags.
 - Never log prompts, reasoning text, tool arguments/results, access tokens, refresh tokens, or OAuth credentials.
+- Log values a human can read: render enums by name (`toolMode=auto`, not the raw `1`) and omit `undefined` fields instead of printing `k=undefined`, so absence stays distinguishable from a real `0`.
 - Feature-detect VS Code runtime APIs that are newer than or absent from `@types/vscode`.
 
 ## Work Guidance

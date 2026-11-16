@@ -154,9 +154,12 @@ For retries, the summary keeps the first occurrence of each phase. Set the Antig
 log channel to **Debug** for `chat phase` records with an attempt number, HTTP status,
 and UTF-8 payload size. Subtract `httpStart` from `headers` for the same attempt, or
 `projectStart` from `projectEnd`, to isolate those waits. `chat complete` includes cached
-token counts when supplied by the gateway.
+token counts when supplied by the gateway; a field the gateway omitted is left out of the
+line entirely rather than printed as `undefined`, so a missing value is absence and a
+present `0` is a real zero.
 
-`chat request` also records `toolGuidance=efficient-v1` when the tool-planning guidance
+`chat request` records `toolMode` by name (`auto` or `required`) rather than the raw
+numeric enum. It also records `toolGuidance=efficient-v1` when the tool-planning guidance
 is applied, or `off` otherwise, plus `attachments` — the number of `inlineData` parts sent,
 from message images and from tool results. `attachments: 0` means the model received no
 image for that turn, so image forwarding can be confirmed from the log instead of

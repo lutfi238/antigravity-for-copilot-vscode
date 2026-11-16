@@ -294,7 +294,8 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				tools: request.tools?.[0]?.functionDeclarations?.length ?? 0,
 				// Proof an image rode along, without inferring it from model behaviour.
 				attachments,
-				toolMode: options.toolMode,
+				// Name it: the raw enum value (Auto = 1) means nothing when reading a log.
+				toolMode: options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : 'auto',
 				toolGuidance,
 			});
 

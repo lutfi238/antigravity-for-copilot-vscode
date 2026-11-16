@@ -476,7 +476,7 @@ describe('provider effort, cancellation and latency diagnostics', () => {
 		const [info] = await h.discover();
 		await h.send(info, 'high');
 		expect(logs.mock.calls.find(([, message]) => message === 'chat request')?.[2])
-			.toMatchObject({ attachments: 0 });
+			.toMatchObject({ attachments: 0, toolMode: 'auto' });
 
 		// A text-only prompt attaches nothing even though it carries a message part.
 		expect(h.client.post.mock.calls[0][0].body.request.contents

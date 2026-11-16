@@ -44,11 +44,15 @@ export const log = {
 
 function format(op: string, message: string, data?: Record<string, unknown>): string {
 	const prefix = `[${op}] ${message}`;
-	if (!data || Object.keys(data).length === 0) {
+	if (!data) {
 		return prefix;
 	}
-	const pairs = Object.entries(data).map(([k, v]) => `${k}=${scrub(v)}`);
-	return `${prefix} ${pairs.join(' ')}`;
+	// Omit undefined rather than rendering "k=undefined": a missing gateway field is
+	// absence, not a value, and the noise made records harder to scan.
+	const pairs = Object.entries(data)
+		.filter(([, value]) => value !== undefined)
+		.map(([k, v]) => `${k}=${scrub(v)}`);
+	return pairs.length === 0 ? prefix : `${prefix} ${pairs.join(' ')}`;
 }
 
 function scrub(value: unknown): string {
