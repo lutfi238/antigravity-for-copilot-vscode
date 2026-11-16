@@ -2,22 +2,21 @@
 
 ## Ownership and contracts
 
-- `workflows/pr-agent.yml` owns opt-in PR-Agent reviews; `PR_AGENT.md` documents
-  activation, credentials, cost, trust boundaries, and release pins.
-- Keep the bot disabled until a maintainer supplies its repository variables and
-  API-key secret. Never reuse local OAuth credentials or commit API keys.
-- Pin the executing Docker image by digest, not a rolling wrapper or image tag.
-- Never check out or execute contributor code in this privileged workflow.
-- Automatic reviews accept all human contributors, including forks and first-time
-  contributors; preserve the draft/bot exclusions and exact, trusted-commenter
-  `/review` gate. Never interpolate PR text into shell commands or settings.
-- Keep contents read-only; do not enable approval, merge, code pushes, or arbitrary
-  comment-command/configuration execution. Disable PR-supplied settings/context.
-- Keep these maintenance files excluded from VSIX packaging.
+- This directory holds no workflows. Automated PR review (PR-Agent) was removed
+  because the pinned Gemini model returned `503 Service Unavailable` and failed
+  the review check on unrelated contributor PRs. Do not reintroduce a
+  provider-backed review bot without a maintainer decision and a documented
+  failure-mode policy.
+- If a workflow is ever added here, keep it opt-in, never reuse local OAuth
+  credentials, never commit API keys, pin any executing Docker image by digest,
+  never check out or execute contributor code in a privileged workflow, and keep
+  contents read-only with no approval, merge, or code-push permissions.
+- Keep maintenance files here excluded from VSIX packaging.
 
 ## Verification
 
-- `actionlint .github/workflows/pr-agent.yml` validates YAML and expressions.
+- `actionlint .github/workflows/*.yml` validates YAML and expressions for any
+  workflow that exists.
 - Exercise provider validation with synthetic keys only; never print real keys.
-- End-to-end review needs a configured provider and incurs API usage. Do not claim
-  a live review succeeded based only on lint or a skipped workflow.
+- Do not claim a live end-to-end check succeeded based only on lint or a skipped
+  workflow.

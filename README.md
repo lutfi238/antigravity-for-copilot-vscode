@@ -299,15 +299,6 @@ The gateway speaks a Gemini dialect for **every** model family, Claude included;
 - **`api/agent-metadata.ts`** — requests carry the agent envelope: `requestType`, a five-segment
   `requestId`, telemetry labels and an FNV-1a session id, in the field order the real client uses.
 
-### Automated PR reviews
-
-An optional PR-Agent GitHub Actions workflow is available for maintainers. It is
-disabled until an AI provider, model, and API-key secret are configured. See the
-[PR-Agent setup guide](.github/PR_AGENT.md) for activation, supported providers,
-data sharing, and API costs. When enabled, it automatically reviews non-draft PRs
-to `main` from all human contributors, including forks and first-time contributors.
-It does not use your local Antigravity sign-in.
-
 ## Contributors
 
 - [@SamiMitwalli](https://github.com/SamiMitwalli) — Claude tool-call compatibility ([PR #2](https://github.com/lutfi238/antigravity-for-copilot-vscode/pull/2)).
