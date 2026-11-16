@@ -2,7 +2,12 @@
 
 ## Unreleased
 
+## 0.15.22
+
 - Log `attachments` on `chat request`: the number of `inlineData` parts sent for that turn, covering images in messages and images returned by tools. `attachments: 0` proves the model received no image, so image forwarding can be verified from the log rather than by asking the model what it saw.
+
+## 0.15.21
+
 - Forward images returned by tools (screenshots, browser captures, image generation) to the model as `inlineData` parts beside the `functionResponse`. `functionResponse.response` is a protobuf Struct that cannot hold bytes, so a non-text tool result previously reached the model only as a `[image/png, 1234 bytes]` placeholder, breaking any loop where the model must see what a tool produced. Text-like data still folds into `output`, and an image-only result keeps a non-empty `(image attached)` output.
 
 ## 0.15.20
