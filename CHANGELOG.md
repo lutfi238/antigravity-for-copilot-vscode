@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.15.23
+## 0.15.24
 
 - Render `toolMode` by name (`auto` or `required`) instead of the raw numeric enum in `chat request`, and omit fields whose value is `undefined` from every log line. A gateway field that was never sent now reads as absence rather than `cachedTokens=undefined`, while a real `0` still prints.
 - Log `attachments` on `chat request`: the number of `inlineData` parts sent for that turn, covering images in messages and images returned by tools. `attachments: 0` proves the model received no image, so image forwarding can be verified from the log rather than by asking the model what it saw.

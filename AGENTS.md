@@ -19,7 +19,7 @@
 - Read this file, then follow the Child DOX Index to every path being changed.
 - Keep `package.json`, README configuration/commands, and implementation behavior aligned when changing public features.
 - Add release-facing changes to `CHANGELOG.md`; do not use it as an implementation diary.
-- Never use an `## Unreleased` heading. Write entries under the next real version number at the top of `CHANGELOG.md` (for example `## 0.15.21` immediately after a published `0.15.20`), so the file always reads as shipped versions. Bump `package.json` to that same version when packaging or publishing. Do not invent intermediate version numbers for local test builds: package them at the version being released, and delete the previous `.vsix` instead.
+- Never use an `## Unreleased` heading. Write entries under the next real version number at the top of `CHANGELOG.md` (for example `## 0.15.24` immediately after a published `0.15.23`), so the file always reads as shipped versions. Bump `package.json` to that same version when packaging or publishing. Do not invent intermediate version numbers for local test builds: package them at the version being released, and delete the previous `.vsix` instead.
 - Preserve user-owned worktree changes and never commit unless explicitly requested.
 
 ## Verification
