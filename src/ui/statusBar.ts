@@ -96,8 +96,8 @@ export class QuotaStatusBar {
 			quotaBlock('Claude / GPT-OSS', catalog.quota.claude),
 			`**AI credits**  \nBalance: **${credits ?? (details.plan === undefined ? 'Loading…' : 'Not reported')}**  \nGoogle One account balance, separate from model quota.`,
 			'---',
-			`Models in picker: **${details.modelCount ?? catalog.models.length}**${catalog.isFallback ? ' (fallback)' : ''}  \nQuota updated: ${new Date(details.updatedAt!).toLocaleTimeString()} · local time`,
-			'_Gemini limits cached up to 1 minute; plan and credits up to 5 minutes. Click to manage accounts and refresh._',
+			`Models in picker: **${details.modelCount ?? catalog.models.length}**${catalog.isFallback ? ' (fallback)' : ''}  \nModel list updated: ${new Date(details.updatedAt!).toLocaleTimeString()} · local time`,
+			'_Gemini limits cached up to 1 minute; plan and credits up to 5 minutes. Refreshes when the window regains focus; click to manage accounts and refresh._',
 		);
 		// Blank paragraphs and explicit hard breaks keep quota groups from running together.
 		this.item.tooltip = new vscode.MarkdownString(blocks.join('\n\n'));

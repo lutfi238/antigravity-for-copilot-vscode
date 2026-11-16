@@ -56,6 +56,8 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 	private readonly specs = new Map<string, ModelSpec>();
 	private catalog?: { value: Catalog; at: number; email: string };
 	private refreshRevision = 0;
+	/** Whether the bar currently holds a rendered, signed-in quota snapshot. */
+	private showing = false;
 	/** Conversation-scoped telemetry identity, keyed off the open workspace. */
 	private readonly session = createSession(
 		vscode.workspace.workspaceFolders?.[0]?.uri.toString() ?? 'vscode://antigravity',
@@ -75,6 +77,23 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		context.subscriptions.push(this._onDidChange);
 		context.subscriptions.push(this.store.onDidChange(() => this.refresh()));
 		context.subscriptions.push({ dispose: () => { this.refreshRevision++; } });
+		context.subscriptions.push(
+			vscode.window.onDidChangeWindowState((state) => this.onWindowState(state)),
+		);
+	}
+
+	/**
+	 * Nothing polls, so a bar left in the background shows whatever it last fetched.
+	 * Refreshing when the window regains focus keeps the number current without spending
+	 * quota requests while the user is elsewhere. Only fire once the snapshot is older than
+	 * the catalogue TTL: `refresh()` invalidates every cache, so an unguarded focus handler
+	 * would re-request discovery, quota, and plan on every alt-tab.
+	 */
+	private onWindowState(state: vscode.WindowState): void {
+		if (!state.focused || !this.showing) return;
+		const fetchedAt = this.catalog?.at;
+		if (fetchedAt !== undefined && Date.now() - fetchedAt < CATALOG_TTL_MS) return;
+		this.refresh();
 	}
 
 	/** Invalidates discovery and asks VS Code to re-query the model list. */
@@ -84,6 +103,7 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		this.plans?.invalidate();
 		this.geminiQuota?.invalidate();
 		this.statusBar.setLoading?.();
+		this.showing = false;
 		this._onDidChange.fire();
 	}
 
@@ -154,9 +174,12 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				});
 			this.statusBar.update(catalog, account.email, {
 				plan: this.plans?.peek(account.email), modelCount: offered.length,
+				// The discovery response this snapshot was built from. Quota freshness is
+				// tracked separately per source; this is the model-catalogue timestamp.
 				updatedAt: this.catalog?.at ?? Date.now(),
 				geminiQuota: this.geminiQuota?.peek(account.email),
 			});
+			this.showing = true;
 			if (this.plans) {
 				const email = account.email;
 				void this.plans.get(account).then(plan => {

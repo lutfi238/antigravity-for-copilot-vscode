@@ -719,3 +719,88 @@ describe('provider effort, cancellation and latency diagnostics', () => {
 		expect(h.client.post).not.toHaveBeenCalled();
 	});
 });
+
+describe('window-focus refresh', () => {
+	let fire: (state: { focused: boolean }) => void;
+
+	function harness() {
+		const listeners: ((state: { focused: boolean }) => void)[] = [];
+		vi.spyOn(vscode.window, 'onDidChangeWindowState').mockImplementation((listener: any) => {
+			listeners.push(listener);
+			return { dispose() {} };
+		});
+		const account = { email: 'focus@example.invalid', refreshToken: 'synthetic' };
+		const store = { active: vi.fn().mockResolvedValue(account), onDidChange: () => ({ dispose() {} }) };
+		const client = { postJson: vi.fn().mockResolvedValue({ models: { 'gemini-3.8-flash-high': {} } }) };
+		const statusBar = { update: vi.fn(), setSignedOut: vi.fn(), setLoading: vi.fn() };
+		const context = { subscriptions: [] as { dispose(): void }[] };
+		const provider = new AntigravityProvider(
+			context as any, store as any, {} as any, client as any,
+			{ resolve: async () => 'project' } as any, statusBar as any,
+		);
+		fire = (state) => listeners.forEach((listener) => listener(state));
+		return { provider, statusBar, client, store, context,
+			discover: () => provider.provideLanguageModelChatInformation({ silent: true }, {} as any) };
+	}
+
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
+	it('subscribes through the extension context so it is disposed with the extension', () => {
+		const h = harness();
+		expect(h.context.subscriptions.some((entry) => typeof entry.dispose === 'function')).toBe(true);
+	});
+
+	it('refreshes when the window regains focus after the snapshot goes stale', async () => {
+		const h = harness();
+		await h.discover();
+		h.statusBar.setLoading.mockClear();
+		vi.advanceTimersByTime(61_000);
+		fire({ focused: true });
+		expect(h.statusBar.setLoading).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not refetch on every alt-tab while the snapshot is still fresh', async () => {
+		// refresh() invalidates all caches, so an unguarded handler would re-request
+		// discovery, quota and plan each time the window regains focus.
+		const h = harness();
+		await h.discover();
+		h.statusBar.setLoading.mockClear();
+		vi.advanceTimersByTime(5_000);
+		fire({ focused: true });
+		fire({ focused: true });
+		expect(h.statusBar.setLoading).not.toHaveBeenCalled();
+	});
+
+	it('ignores losing focus', async () => {
+		const h = harness();
+		await h.discover();
+		h.statusBar.setLoading.mockClear();
+		vi.advanceTimersByTime(61_000);
+		fire({ focused: false });
+		expect(h.statusBar.setLoading).not.toHaveBeenCalled();
+	});
+
+	it('does nothing while signed out, so focus cannot trigger discovery churn', () => {
+		const h = harness();
+		h.statusBar.setLoading.mockClear();
+		vi.advanceTimersByTime(61_000);
+		fire({ focused: true });
+		expect(h.statusBar.setLoading).not.toHaveBeenCalled();
+	});
+
+	it('refreshes again once a new snapshot has aged past the TTL', async () => {
+		const h = harness();
+		await h.discover();
+		vi.advanceTimersByTime(61_000);
+		fire({ focused: true });
+		await h.discover();
+		h.statusBar.setLoading.mockClear();
+		vi.advanceTimersByTime(61_000);
+		fire({ focused: true });
+		expect(h.statusBar.setLoading).toHaveBeenCalledTimes(1);
+	});
+});

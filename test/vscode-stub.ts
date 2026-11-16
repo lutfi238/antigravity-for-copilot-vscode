@@ -109,6 +109,8 @@ export const window = {
 		show() {},
 		dispose() {},
 	}),
+	/** Present so the provider can subscribe; the stub never fires it. */
+	onDidChangeWindowState: () => ({ dispose() {} }),
 };
 
 export const workspace = {

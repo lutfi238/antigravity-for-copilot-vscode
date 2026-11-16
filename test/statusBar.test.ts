@@ -188,8 +188,23 @@ describe('QuotaStatusBar', () => {
 		expect((item.tooltip as any).value).toContain('Plan: **Not reported**');
 	});
 
-	it('does not leak a previous account plan after switching, refresh or sign-out', () => {
-		const catalog = { models: [], quota: {}, isFallback: false };
+	it('labels the catalogue timestamp as the model list, not as quota', () => {
+		// `updatedAt` is the model-discovery time. Gemini limits carry their own
+		// `geminiQuota.updatedAt`, so calling this one "Quota updated" was misleading.
+		const catalogTime = Date.parse('2026-10-14T12:00:00Z');
+		const quotaTime = Date.parse('2026-10-14T12:34:00Z');
+		bar.update({ models: [], quota: {}, isFallback: false }, 'test@example.com', {
+			updatedAt: catalogTime,
+			geminiQuota: { weekly: { remainingFraction: .5 }, updatedAt: quotaTime },
+		});
+		const tooltip = (item.tooltip as any).value as string;
+		expect(tooltip).toContain(`Model list updated: ${new Date(catalogTime).toLocaleTimeString()}`);
+		expect(tooltip).not.toContain('Quota updated:');
+		// The quota freshness line stays tied to the quota response.
+		expect(tooltip).toContain(`Limits updated: ${new Date(quotaTime).toLocaleTimeString()}`);
+	});
+
+	it('does not leak a previous account plan after switching, refresh or sign-out', () => {		const catalog = { models: [], quota: {}, isFallback: false };
 		bar.update(catalog, 'first@example.com', { plan: { label: 'Pro' } });
 		bar.update(catalog, 'second@example.com');
 		bar.setPlan('first@example.com', { label: 'Ultra' });
