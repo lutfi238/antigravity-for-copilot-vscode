@@ -32,11 +32,18 @@ export interface BuildResult {
 	request: GeminiRequest;
 	names: ToolNameMap;
 	toolGuidance: typeof TOOL_GUIDANCE_REVISION | 'off';
+	/** `inlineData` parts actually emitted, from both messages and tool results. */
+	attachments: number;
 }
 
 export function buildRequest(options: BuildOptions): BuildResult {
 	const names = new ToolNameMap();
-	const contents = buildContents(options.messages, names, options.signatures, options.sendToolCallIds);
+	const { contents, attachments } = buildContents(
+		options.messages,
+		names,
+		options.signatures,
+		options.sendToolCallIds,
+	);
 	const request: GeminiRequest = { contents };
 
 	const tools = buildTools(options.tools, names);
@@ -62,7 +69,7 @@ export function buildRequest(options: BuildOptions): BuildResult {
 
 	const toolGuidance = applyToolGuidance(request, options.model, options.efficientToolUse === true)
 		? TOOL_GUIDANCE_REVISION : 'off';
-	return { request, names, toolGuidance };
+	return { request, names, toolGuidance, attachments };
 }
 
 /**
@@ -78,9 +85,13 @@ function buildContents(
 	names: ToolNameMap,
 	signatures: SignatureCache,
 	sendToolCallIds: boolean,
-): GeminiContent[] {
+): { contents: GeminiContent[]; attachments: number } {
 	const callNames = new Map<string, string>();
 	const contents: GeminiContent[] = [];
+	// Counted here rather than by scanning the finished request: this is the exact
+	// number of `inlineData` parts emitted, so the log can prove an image was attached
+	// without inferring it from model behaviour.
+	let attachments = 0;
 
 	for (const message of messages) {
 		const role: 'user' | 'model' =
@@ -123,7 +134,7 @@ function buildContents(
 				// Struct: it only carries JSON values, so an image cannot live inside it.
 				// Return the call plus any non-text payload as sibling parts so a screenshot
 				// or generated image actually reaches the model instead of a byte-count stub.
-				const { text, attachments } = splitToolResult(item.content);
+				const { text, attachments: attachmentParts } = splitToolResult(item.content);
 				resultParts.push({
 					functionResponse: {
 						name: callNames.get(item.callId) ?? item.callId,
@@ -131,13 +142,14 @@ function buildContents(
 						...(sendToolCallIds && item.callId ? { id: item.callId } : {}),
 					},
 				});
-				for (const attachment of attachments) {
+				for (const attachment of attachmentParts) {
 					resultParts.push({
 						inlineData: {
 							mimeType: attachment.mimeType,
 							data: Buffer.from(attachment.data).toString('base64'),
 						},
 					});
+					attachments++;
 				}
 			} else if (item instanceof vscode.LanguageModelDataPart) {
 				// This is response metadata for VS Code's context widget, not model input.
@@ -151,6 +163,7 @@ function buildContents(
 						data: Buffer.from(item.data).toString('base64'),
 					},
 				});
+				attachments++;
 			}
 		}
 
@@ -167,7 +180,7 @@ function buildContents(
 		contents.unshift({ role: 'user', parts: [{ text: '(continue)' }] });
 	}
 
-	return contents;
+	return { contents, attachments };
 }
 
 /** Merges into the previous content block when the role matches. */

@@ -470,6 +470,40 @@ describe('provider effort, cancellation and latency diagnostics', () => {
 		expect(JSON.stringify(logs.mock.calls)).not.toContain('PRIVATE_');
 	});
 
+	it('logs the attachment count so image forwarding is verifiable from the log alone', async () => {
+		const h = harness();
+		const logs = vi.spyOn(log, 'info');
+		const [info] = await h.discover();
+		await h.send(info, 'high');
+		expect(logs.mock.calls.find(([, message]) => message === 'chat request')?.[2])
+			.toMatchObject({ attachments: 0 });
+
+		// A text-only prompt attaches nothing even though it carries a message part.
+		expect(h.client.post.mock.calls[0][0].body.request.contents
+			.flatMap((c: any) => c.parts).filter((p: any) => p.inlineData)).toHaveLength(0);
+	});
+
+	it('counts an image carried by a tool result in the chat request log', async () => {
+		const h = harness(['high'], [{ name: 'shot', description: 'shot', inputSchema: { type: 'object', properties: {} } }]);
+		const logs = vi.spyOn(log, 'info');
+		const [info] = await h.discover();
+		const png = new Uint8Array([137, 80, 78, 71]);
+		await h.provider.provideLanguageModelChatResponse(info, [
+			{ role: vscode.LanguageModelChatMessageRole.User, content: [new vscode.LanguageModelTextPart('capture')], name: undefined },
+			{ role: vscode.LanguageModelChatMessageRole.Assistant, name: undefined,
+			  content: [new vscode.LanguageModelToolCallPart('call_1', 'shot', {})] },
+			{ role: vscode.LanguageModelChatMessageRole.User, name: undefined,
+			  content: [new vscode.LanguageModelToolResultPart('call_1', [new vscode.LanguageModelDataPart(png, 'image/png')])] },
+		] as any, { tools: [{ name: 'shot', description: 'shot' }], modelConfiguration: { reasoningEffort: 'high' } } as any,
+			{ report: () => {} }, new TestToken());
+		expect(logs.mock.calls.find(([, message]) => message === 'chat request')?.[2])
+			.toMatchObject({ attachments: 1 });
+		const inline = h.client.post.mock.calls[0][0].body.request.contents
+			.flatMap((c: any) => c.parts).filter((p: any) => p.inlineData);
+		expect(inline).toHaveLength(1);
+		expect(inline[0].inlineData.mimeType).toBe('image/png');
+	});
+
 	it('shows and removes a new discovered product on refresh without an unavailable placeholder', async () => {
 		const h = harness();
 		expect((await h.discover()).some(m => m.name === 'Gemini 4 Argon')).toBe(false);

@@ -247,7 +247,7 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			const sendToolCallIds =
 				toolCallIds === 'all' || (toolCallIds === 'claude' && spec.family === 'claude');
 
-			const { request, names, toolGuidance } = buildRequest({
+			const { request, names, toolGuidance, attachments } = buildRequest({
 				model: resolved,
 				messages,
 				tools: options.tools,
@@ -292,6 +292,8 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				sendToolCallIds,
 				contents: request.contents.length,
 				tools: request.tools?.[0]?.functionDeclarations?.length ?? 0,
+				// Proof an image rode along, without inferring it from model behaviour.
+				attachments,
 				toolMode: options.toolMode,
 				toolGuidance,
 			});

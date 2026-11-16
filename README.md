@@ -157,8 +157,11 @@ and UTF-8 payload size. Subtract `httpStart` from `headers` for the same attempt
 token counts when supplied by the gateway.
 
 `chat request` also records `toolGuidance=efficient-v1` when the tool-planning guidance
-is applied, or `off` otherwise. `chat complete` reports `toolCalls`, the number of calls
-emitted in that response. These counts help compare agent behavior across runs.
+is applied, or `off` otherwise, plus `attachments` — the number of `inlineData` parts sent,
+from message images and from tool results. `attachments: 0` means the model received no
+image for that turn, so image forwarding can be confirmed from the log instead of
+inferring it from what the model says. `chat complete` reports `toolCalls`, the number of
+calls emitted in that response. These counts help compare agent behavior across runs.
 
 Logs exclude prompts, reasoning, tool arguments and results, credentials and tokens — keeping
 only counts, sizes, transport decisions and redacted error text.

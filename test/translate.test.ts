@@ -355,6 +355,70 @@ describe('buildRequest — binary tool results', () => {
 	});
 });
 
+describe('buildRequest — attachment count', () => {
+	// The count feeds the `chat request` log, which is how image forwarding is verified
+	// without a live screenshot experiment, so it must match the emitted inlineData parts.
+	const png = new Uint8Array([137, 80, 78, 71]);
+
+	it('is zero when nothing is attached', () => {
+		const { attachments } = build([userMessage(new vscode.LanguageModelTextPart('hi'))]);
+		expect(attachments).toBe(0);
+	});
+
+	it('counts an image sent directly in a message', () => {
+		const { request, attachments } = build([
+			userMessage(new vscode.LanguageModelTextPart('look'), new vscode.LanguageModelDataPart(png, 'image/png')),
+		]);
+		expect(attachments).toBe(1);
+		const inline = request.contents.flatMap((c) => c.parts).filter((p) => p.inlineData);
+		expect(inline).toHaveLength(1);
+	});
+
+	it('counts an image carried by a tool result', () => {
+		const { request, attachments } = build([
+			userMessage(new vscode.LanguageModelTextPart('capture')),
+			assistantMessage(new vscode.LanguageModelToolCallPart('call_1', 'shot', {})),
+			userMessage(new vscode.LanguageModelToolResultPart('call_1', [
+				new vscode.LanguageModelTextPart('ok'),
+				new vscode.LanguageModelDataPart(png, 'image/png'),
+			])),
+		], [{ name: 'shot', description: 'shot', inputSchema: { type: 'object', properties: {} } }]);
+		expect(attachments).toBe(1);
+		const inline = request.contents.flatMap((c) => c.parts).filter((p) => p.inlineData);
+		expect(inline).toHaveLength(1);
+	});
+
+	it('counts several attachments across messages and tool results', () => {
+		const { attachments } = build([
+			userMessage(new vscode.LanguageModelTextPart('two images'), new vscode.LanguageModelDataPart(png, 'image/png')),
+			assistantMessage(new vscode.LanguageModelToolCallPart('call_1', 'shot', {})),
+			userMessage(new vscode.LanguageModelToolResultPart('call_1', [
+				new vscode.LanguageModelDataPart(png, 'image/jpeg'),
+				new vscode.LanguageModelDataPart(new Uint8Array([1]), 'image/webp'),
+			])),
+		], [{ name: 'shot', description: 'shot', inputSchema: { type: 'object', properties: {} } }]);
+		expect(attachments).toBe(3);
+	});
+
+	it('does not count text-like data, which folds into output', () => {
+		const { attachments } = build([
+			userMessage(new vscode.LanguageModelTextPart('x')),
+			assistantMessage(new vscode.LanguageModelToolCallPart('call_1', 'read', {})),
+			userMessage(new vscode.LanguageModelToolResultPart('call_1', [
+				new vscode.LanguageModelDataPart(new TextEncoder().encode('{"ok":true}'), 'application/json'),
+			])),
+		], [{ name: 'read', description: 'read', inputSchema: { type: 'object', properties: {} } }]);
+		expect(attachments).toBe(0);
+	});
+
+	it('does not count the internal usage data part', () => {
+		const { attachments } = build([
+			userMessage(new vscode.LanguageModelTextPart('x'), new vscode.LanguageModelDataPart(new Uint8Array([1]), 'usage')),
+		]);
+		expect(attachments).toBe(0);
+	});
+});
+
 describe('buildRequest — tool call ids', () => {
 	function buildWithIds(model: ModelSpec, sendToolCallIds: boolean) {
 		return buildRequest(
