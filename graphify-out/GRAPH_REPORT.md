@@ -1,16 +1,16 @@
 # Graph Report - antigravity-for-copilot-vscode  (2026-11-16)
 
 ## Corpus Check
-- 73 files · ~64,564 words
+- 73 files · ~68,319 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 858 nodes · 1591 edges · 58 communities (52 shown, 4 thin omitted)
+- 864 nodes · 1602 edges · 59 communities (54 shown, 3 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 46 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `cb30f943`
+- Built from commit: `fce4819c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,13 +19,13 @@
 - statusBar.ts
 - oauth.ts
 - agyImage.ts
-- provider.ts
+- models.ts
 - vscode-stub.ts
 - compilerOptions
 - package.json
 - agyCli.ts
 - devDependencies
-- log.ts
+- provider.ts
 - icon.build.cjs
 - antigravity.effortSelection
 - antigravity.modelSelection
@@ -39,7 +39,7 @@
 - antigravity.hiddenModels
 - antigravity.projectId
 - antigravity.showStatusBar
-- antigravity.showThinking
+- translate.test.ts
 - activationEvents
 - dependencies
 - galleryBanner
@@ -49,14 +49,16 @@
 - client.ts
 - GatewayClient
 - Antigravity Model Bridge
+- schema.ts
 - extension.ts
-- TokenManager
-- provider.test.ts
+- fromGemini.ts
+- .provideLanguageModelChatResponse
 - Antigravity capability audit
 - errors.ts
 - AccountStore
-- ProjectResolver
-- awaitWithSignal
+- contributes
+- project.ts
+- geminiQuota.ts
 - antigravity.toolCallIds
 - Source
 - Gateway API
@@ -70,10 +72,9 @@
 - enum
 - Q: please understand using /graphify
 - Q: please understand inside this folder using graphify skills
-- geminiQuota.ts
 
 ## God Nodes (most connected - your core abstractions)
-1. `Changelog` - 47 edges
+1. `Changelog` - 49 edges
 2. `AccountStore` - 21 edges
 3. `activate()` - 21 edges
 4. `GatewayClient` - 18 edges
@@ -99,27 +100,27 @@
 ## Import Cycles
 - None detected.
 
-## Communities (58 total, 4 thin omitted)
+## Communities (59 total, 3 thin omitted)
 
 ### Community 0 - "toGemini.ts"
-Cohesion: 0.06
-Nodes (65): ModelSpec, candidatesOf(), closeThinkingPart(), createThinkingPart(), createUsageDataPart(), emitChunk(), EmitContext, emitPart() (+57 more)
+Cohesion: 0.15
+Nodes (22): ModelSpec, BUDGETS, ReasoningEffort, textKey(), append(), buildContents(), BuildOptions, BuildResult (+14 more)
 
 ### Community 1 - "statusBar.ts"
-Cohesion: 0.16
-Nodes (10): AccountPlan, GeminiQuota, QuotaWindow, escapeMarkdown(), format(), quotaBlock(), QuotaStatusBar, QuotaStatusDetails (+2 more)
+Cohesion: 0.10
+Nodes (14): AccountPlan, GeminiQuota, QuotaWindow, Catalog, escapeMarkdown(), format(), quotaBlock(), QuotaStatusBar (+6 more)
 
 ### Community 2 - "oauth.ts"
-Cohesion: 0.11
-Nodes (23): GENERATION_ENDPOINTS, OAUTH_AUTHORIZE_URL, OAUTH_REDIRECT_PATH, OAUTH_REDIRECT_PORT, OAUTH_REDIRECT_URI, OAUTH_SCOPES, OAUTH_TOKEN_URL, OAUTH_USERINFO_URL (+15 more)
+Cohesion: 0.10
+Nodes (26): FALLBACK_PROJECT_ID, OAUTH_AUTHORIZE_URL, OAUTH_REDIRECT_PATH, OAUTH_REDIRECT_PORT, OAUTH_REDIRECT_URI, OAUTH_SCOPES, OAUTH_TOKEN_URL, OAUTH_USERINFO_URL (+18 more)
 
 ### Community 3 - "agyImage.ts"
 Cohesion: 0.06
 Nodes (67): addUnique(), AgyGeneratedImage, AgyImageRequest, AgyImageResult, AgyImageStreamResult, buildAgyImagePrompt(), collectImageArtifacts(), decodeImageData() (+59 more)
 
-### Community 4 - "provider.ts"
-Cohesion: 0.05
-Nodes (55): AgentMetadata, AgentSession, buildAgentMetadata(), buildEnvelope(), countSteps(), createSession(), fnv1a64Signed(), MODEL_ENUM (+47 more)
+### Community 4 - "models.ts"
+Cohesion: 0.07
+Nodes (40): ENDPOINT_PROD, asEffort(), availableEfforts(), buildConfigurationSchema(), Effort, EFFORT_DESCRIPTION, EFFORT_LABEL, EFFORT_ORDER (+32 more)
 
 ### Community 5 - "vscode-stub.ts"
 Cohesion: 0.05
@@ -135,15 +136,15 @@ Nodes (15): bugs, url, description, displayName, engines, vscode, extensionKind,
 
 ### Community 8 - "agyCli.ts"
 Cohesion: 0.10
-Nodes (28): addUnique(), AGY_SEARCH_AGENT_PREFIX, AGY_SEARCH_MIN_VERSION, agySearchAgentDefinition(), AgySearchStreamResult, AgySearchWorkspace, assertAgySearchAgentSupported(), buildAgySearchArgs() (+20 more)
+Nodes (30): addUnique(), AGY_SEARCH_AGENT_PREFIX, AGY_SEARCH_MIN_VERSION, agySearchAgentDefinition(), AgySearchStreamResult, AgySearchWorkspace, assertAgySearchAgentSupported(), buildAgySearchArgs() (+22 more)
 
 ### Community 9 - "devDependencies"
 Cohesion: 0.15
 Nodes (13): devDependencies, esbuild, @types/node, @types/vscode, typescript, vitest, @vscode/vsce, esbuild (+5 more)
 
-### Community 10 - "log.ts"
-Cohesion: 0.21
-Nodes (11): FALLBACK_PROJECT_ID, agentFor(), httpFetch(), isBypassed(), proxyUrl(), LoadCodeAssistResponse, OnboardUserResponse, format() (+3 more)
+### Community 10 - "provider.ts"
+Cohesion: 0.16
+Nodes (16): AgentMetadata, AgentSession, buildAgentMetadata(), buildEnvelope(), countSteps(), createSession(), fnv1a64Signed(), MODEL_ENUM (+8 more)
 
 ### Community 11 - "icon.build.cjs"
 Cohesion: 0.24
@@ -162,8 +163,8 @@ Cohesion: 0.25
 Nodes (9): categories, keywords, ai, antigravity, chat, copilot, gemini, gpt-oss (+1 more)
 
 ### Community 15 - "enum"
-Cohesion: 0.25
-Nodes (8): default, enum, markdownDescription, type, antigravity.reasoningEffort, high, low, medium
+Cohesion: 0.22
+Nodes (9): default, enum, markdownDescription, type, antigravity.reasoningEffort, high, low, medium (+1 more)
 
 ### Community 16 - "scripts"
 Cohesion: 0.22
@@ -179,7 +180,7 @@ Nodes (6): esbuild, fs, main(), problemMatcherPlugin, production, watch
 
 ### Community 19 - "properties"
 Cohesion: 0.18
-Nodes (11): default, markdownDescription, type, properties, title, contributes, commands, configuration (+3 more)
+Nodes (11): default, markdownDescription, type, default, markdownDescription, type, properties, title (+3 more)
 
 ### Community 20 - "antigravity.cliPath"
 Cohesion: 0.33
@@ -197,9 +198,9 @@ Nodes (4): default, markdownDescription, type, antigravity.projectId
 Cohesion: 0.50
 Nodes (4): default, description, type, antigravity.showStatusBar
 
-### Community 24 - "antigravity.showThinking"
-Cohesion: 0.50
-Nodes (4): default, markdownDescription, type, antigravity.showThinking
+### Community 24 - "translate.test.ts"
+Cohesion: 0.18
+Nodes (16): EmitContext, newEmitState(), ToolNameMap, applyThinking(), SignatureCache, buildRequest(), pickGenerationConfig(), assistantMessage() (+8 more)
 
 ### Community 25 - "activationEvents"
 Cohesion: 0.67
@@ -219,27 +220,31 @@ Nodes (3): repository, type, url
 
 ### Community 31 - "Changelog"
 Cohesion: 0.04
-Nodes (47): 0.0.1, 0.0.2, 0.10.0, 0.11.0, 0.12.0, 0.12.1, 0.12.2, 0.12.3 (+39 more)
+Nodes (49): 0.0.1, 0.0.2, 0.10.0, 0.11.0, 0.12.0, 0.12.1, 0.12.2, 0.12.3 (+41 more)
 
 ### Community 32 - "client.ts"
-Cohesion: 0.26
-Nodes (10): contentsOf(), EndpointSet, hasId(), isRecord(), partsOf(), RequestOptions, summarizeRequest(), SummaryContent (+2 more)
+Cohesion: 0.20
+Nodes (15): contentsOf(), EndpointSet, hasId(), isRecord(), partsOf(), RequestOptions, summarizeRequest(), SummaryContent (+7 more)
 
 ### Community 33 - "GatewayClient"
 Cohesion: 0.17
-Nodes (4): AccountPlanService, GatewayClient, GeminiQuotaService, newOperationId()
+Nodes (5): AccountPlanService, GatewayClient, GeminiQuotaService, newOperationId(), AntigravityProvider
 
 ### Community 34 - "Antigravity Model Bridge"
 Cohesion: 0.05
 Nodes (35): 1. Current Antigravity Models page: explicit Gemini grouping, 2. Installed official CLI: the same two groups, 3. Plans page: baseline quota is separate from paid overage credits, 4. Google One Help: credits have model-dependent cost, not a baseline percentage, Antigravity Gemini quota-pool research, Artifact evidence and boundaries, Contributor observation and local verification boundary, Decision (+27 more)
 
+### Community 35 - "schema.ts"
+Cohesion: 0.20
+Nodes (15): appendHint(), clean(), disambiguate(), emptySchema(), fillEmptyObjects(), isObj(), NAME_KEYED_CONTAINERS, Obj (+7 more)
+
 ### Community 36 - "extension.ts"
 Cohesion: 0.30
 Nodes (12): onModelAffectingChange(), activate(), initLogging(), showLogs(), manage(), ManageDeps, removeAccount(), showAuthStatus() (+4 more)
 
-### Community 38 - "provider.test.ts"
-Cohesion: 0.23
-Nodes (5): Catalog, AntigravityProvider, harness(), sseResponse(), TestToken
+### Community 37 - "fromGemini.ts"
+Cohesion: 0.26
+Nodes (11): candidatesOf(), closeThinkingPart(), createThinkingPart(), createUsageDataPart(), emitChunk(), emitPart(), EmitState, nonNegative() (+3 more)
 
 ### Community 39 - "Antigravity capability audit"
 Cohesion: 0.07
@@ -249,9 +254,17 @@ Nodes (28): 1. Implemented in 0.14.0: explicit VS Code web-search bridge, 2. Imp
 Cohesion: 0.23
 Nodes (6): describe(), extractMessage(), GatewayError, toGatewayError(), toLanguageModelError(), redact()
 
-### Community 45 - "awaitWithSignal"
+### Community 42 - "contributes"
+Cohesion: 0.50
+Nodes (4): contributes, commands, languageModelChatProviders, languageModelTools
+
+### Community 43 - "project.ts"
 Cohesion: 0.39
-Nodes (5): awaitWithSignal(), findSeparator(), parseEvent(), readSse(), collect()
+Nodes (4): bootstrapMetadata(), LoadCodeAssistResponse, OnboardUserResponse, ProjectResolver
+
+### Community 45 - "geminiQuota.ts"
+Cohesion: 0.21
+Nodes (9): awaitWithSignal(), DISCOVERY_ENDPOINTS, parseGeminiQuota(), record(), findSeparator(), parseEvent(), readSse(), account (+1 more)
 
 ### Community 47 - "antigravity.toolCallIds"
 Cohesion: 0.25
@@ -305,29 +318,25 @@ Nodes (4): Answer, Outcome, Q: please understand using /graphify, Source Nodes
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: please understand inside this folder using graphify skills, Source Nodes
 
-### Community 63 - "geminiQuota.ts"
-Cohesion: 0.43
-Nodes (4): DISCOVERY_ENDPOINTS, parseGeminiQuota(), record(), account
-
 ## Knowledge Gaps
-- **331 isolated node(s):** `esbuild`, `fs`, `production`, `problemMatcherPlugin`, `fs` (+326 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 391 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **335 isolated node(s):** `esbuild`, `fs`, `production`, `problemMatcherPlugin`, `fs` (+330 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 395 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `properties` connect `properties` to `antigravity.effortSelection`, `antigravity.modelSelection`, `enum`, `antigravity.toolCallIds`, `antigravity.endpoint`, `antigravity.cliPath`, `antigravity.hiddenModels`, `antigravity.projectId`, `antigravity.showStatusBar`, `antigravity.showThinking`?**
+- **Why does `properties` connect `properties` to `antigravity.effortSelection`, `antigravity.modelSelection`, `enum`, `antigravity.toolCallIds`, `antigravity.endpoint`, `antigravity.cliPath`, `antigravity.hiddenModels`, `antigravity.projectId`, `antigravity.showStatusBar`?**
   _High betweenness centrality (0.018) - this node is a cross-community bridge._
-- **Why does `config` connect `agyCli.ts` to `statusBar.ts`, `agyImage.ts`, `provider.ts`, `provider.test.ts`?**
+- **Why does `config` connect `agyCli.ts` to `statusBar.ts`, `provider.ts`, `agyImage.ts`?**
   _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **Why does `log` connect `log.ts` to `client.ts`, `oauth.ts`, `agyImage.ts`, `provider.ts`, `extension.ts`, `provider.test.ts`, `awaitWithSignal`, `accountPlan.ts`, `geminiQuota.ts`?**
+- **Why does `log` connect `client.ts` to `statusBar.ts`, `oauth.ts`, `agyImage.ts`, `models.ts`, `extension.ts`, `provider.ts`, `project.ts`, `geminiQuota.ts`, `accountPlan.ts`?**
   _High betweenness centrality (0.015) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `activate()` (e.g. with `.active()` and `.refresh()`) actually correct?**
   _`activate()` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `esbuild`, `fs`, `production` to the rest of the system?**
-  _331 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _335 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `toGemini.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.06060606060606061 - nodes in this community are weakly interconnected._
-- **Should `oauth.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.11182795698924732 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1476923076923077 - nodes in this community are weakly interconnected._
+- **Should `statusBar.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.10037878787878787 - nodes in this community are weakly interconnected._
