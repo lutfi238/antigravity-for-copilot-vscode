@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Recognize `xhigh` (`XHigh`) effort tiers, so `Gemini 4 Hydrogen` collapses into a single picker entry offering Low, Medium, High, and XHigh Thinking Effort instead of appearing twice. A model without an XHigh variant falls back to its strongest standard tier rather than producing an unroutable id, and an unavailable configured default now prefers `high` over the most expensive tier.
+- Keep the Thinking Effort control when discovery sends a bare display name for every tier ("Gemini 4 Hydrogen" for high/medium/low/xhigh). Curation previously deduped those siblings away and `collapseTiers` saw a single untiered model, so the picker silently offered no effort choices for Gemini 4 Argon, Carbon, and Hydrogen; the tier is now derived from the model id in both places.
+- Drop `disabled: true` plan placeholders and `*-worker-*` server-side aliases from discovery so they no longer reach the picker or the quota display. Keep `Orchestrator (Argon)` when discovery reports it, with the 65,536-token synchronous output limit and no invented effort tier. Gemini 4 Carbon now takes the same 65,536-token synchronous limit instead of falling through to the Gemini Pro cap.
+- Update the CLI fingerprint `User-Agent` to the installed 1.5.9 build (`cl=1021519450`) so gateway discovery matches a current client. This changes the identity sent to an undocumented endpoint; re-verify discovery on a live account before relying on newly reported models.
+
 ## 0.15.18
 
 - Restrict Web Search to an isolated temporary custom agent with a fresh name per run, a `search_web` tool allowlist, and inherited customizations/MCP disabled. Web Search now requires **agy 1.3.4 or newer**, checked before starting an agent turn.

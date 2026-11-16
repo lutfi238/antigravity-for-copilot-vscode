@@ -42,8 +42,17 @@ export const DISCOVERY_ENDPOINTS = [ENDPOINT_DAILY, ENDPOINT_PROD] as const;
 /** Used when the gateway returns no project (e.g. Workspace accounts). */
 export const FALLBACK_PROJECT_ID = 'rising-fact-p41fc';
 
-const AGY_CLI_VERSION = '1.4.0';
-const AGY_CLI_CHANGE_LIST = '964361259';
+/**
+ * Content-request identity, matched to the installed Antigravity CLI.
+ *
+ * `cl` is the build's changelist. The value below is the `google_src/files/<CL>`
+ * identifier embedded in the released 1.5.9 binary, cross-checked for ordering against
+ * `@cortexkit/antigravity-auth-core` 3.1.2 (1.5.8 → 1020628950). The exact outgoing
+ * header has not been captured on the wire, so treat a mismatch as a lead to re-capture
+ * rather than as proof this value is wrong.
+ */
+const AGY_CLI_VERSION = '1.5.9';
+const AGY_CLI_CHANGE_LIST = '1021519450';
 
 /**
  * A single stable client identity, matching the Antigravity CLI's own.

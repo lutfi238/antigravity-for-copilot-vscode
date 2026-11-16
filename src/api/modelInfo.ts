@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { ModelSpec } from './models';
+import { ModelSpec, ThinkingTier } from './models';
 
-export type Effort = 'low' | 'medium' | 'high';
+export type Effort = ThinkingTier;
 
 /**
  * Per-model controls rendered beside the model in the picker.
@@ -39,18 +39,25 @@ export type ProviderChatInformation = vscode.LanguageModelChatInformation & {
 	readonly configurationSchema?: ModelConfigurationSchema;
 };
 
-const EFFORT_ORDER: Effort[] = ['low', 'medium', 'high'];
+const EFFORT_ORDER: Effort[] = ['low', 'medium', 'high', 'xhigh'];
+/**
+ * Claude takes an arbitrary numeric budget, not a published model id, so it gets the
+ * ladder the gateway's budget mapping covers. `xhigh` has no budget of its own.
+ */
+const NUMERIC_BUDGET_EFFORTS: Effort[] = ['low', 'medium', 'high'];
 
 const EFFORT_LABEL: Record<Effort, string> = {
 	low: 'Low',
 	medium: 'Medium',
 	high: 'High',
+	xhigh: 'XHigh',
 };
 
 const EFFORT_DESCRIPTION: Record<Effort, string> = {
 	low: 'Fastest and cheapest. Least thinking before answering.',
 	medium: 'Balanced thinking for everyday work.',
 	high: 'Most thinking. Best for hard reasoning, slowest and most quota.',
+	xhigh: 'Extra-high thinking, for models that publish an XHigh variant.',
 };
 
 /**
@@ -58,14 +65,14 @@ const EFFORT_DESCRIPTION: Record<Effort, string> = {
  *
  * A collapsed Gemini entry can only offer the tiers the backend published as sibling
  * model ids — inventing a "medium" the gateway does not route would 404. Claude takes an
- * arbitrary numeric budget, so all three are genuine.
+ * arbitrary numeric budget, so every budgeted tier is genuine.
  */
 export function availableEfforts(model: ModelSpec): Effort[] {
 	if (model.tierVariants) {
 		return EFFORT_ORDER.filter((effort) => model.tierVariants![effort]);
 	}
 	if (model.thinkingStyle === 'numeric-budget') {
-		return [...EFFORT_ORDER];
+		return [...NUMERIC_BUDGET_EFFORTS];
 	}
 	return [];
 }
@@ -89,7 +96,13 @@ export function buildConfigurationSchema(
 			enumItemLabels: efforts.map((effort) => EFFORT_LABEL[effort]),
 			enumDescriptions: efforts.map((effort) => EFFORT_DESCRIPTION[effort]),
 			// Start on the user's configured preference, but only if this model serves it.
-			default: efforts.includes(defaultEffort) ? defaultEffort : efforts[efforts.length - 1],
+			// Otherwise prefer `high`: falling straight to the strongest tier would turn an
+			// unset effort into a quota surprise on a model that publishes XHigh.
+			default: efforts.includes(defaultEffort)
+				? defaultEffort
+				: efforts.includes('high')
+					? 'high'
+					: efforts[efforts.length - 1],
 			group: 'navigation',
 		};
 	}
@@ -118,7 +131,9 @@ export type EffortSource =
 	| 'setting';
 
 function asEffort(value: unknown): Effort | undefined {
-	return value === 'low' || value === 'medium' || value === 'high' ? value : undefined;
+	return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh'
+		? value
+		: undefined;
 }
 
 /** Pulls an effort out of a bag, tolerating the several shapes it has been seen in. */

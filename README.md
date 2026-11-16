@@ -5,10 +5,14 @@ A lightweight VS Code Language Model Provider for the Google Antigravity backend
 [![Install](https://img.shields.io/badge/VS_Code-Install-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=lutfi.antigravity-for-copilot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Use **Gemini 3.8 Flash**, **Claude Sonnet 4.6/5.5 (Thinking)**,
-**Claude Opus 4.6/5.5 (Thinking)**, and **GPT-OSS 120B (Medium)** when available
-to your Antigravity account, from the standard model picker in Chat and Agent mode.
-Claude version availability varies; these descriptions do not add or rename model IDs.
+Use **Gemini 4 Hydrogen** (Low/Medium/High/XHigh), **Gemini 4 Argon** and
+**Gemini 4 Carbon** where your plan provides them, **Gemini 3.8 Flash**,
+**Claude Sonnet 4.6/5.5 (Thinking)**, **Claude Opus 4.6/5.5 (Thinking)**, and
+**GPT-OSS 120B (Medium)** when available to your Antigravity account, from the
+standard model picker in Chat and Agent mode. The picker always uses the models your
+account's own discovery returns; the list above describes the product lines the bridge
+understands, not a fixed roster. Claude version availability varies, and these
+descriptions do not add or rename model IDs.
 Requests run on your Antigravity account rather than Copilot premium requests.
 
 > **Unofficial.** Not affiliated with, endorsed by, or supported by Google. This talks to
@@ -26,7 +30,7 @@ Requests run on your Antigravity account rather than Copilot premium requests.
 - **Context usage reporting** — completed gateway token usage feeds VS Code's Context Window
   widget, including its prompt breakdown when the installed VS Code build supports it.
 - **Multi-turn reasoning continuity** — thought signatures are replayed so tool-using conversations survive past the first turn.
-- **Quota groups** in the status bar: standard Gemini (Flash and Pro), discovered Gemini 4 Argon, and Claude/GPT models. Standard Gemini shows `5h … / W …` for the backend's explicit five-hour and weekly buckets; hover for each limit's remaining percentage and local reset time. These limits load in the background, are cached for one minute, and clear on refresh or account changes. Missing windows stay **Not reported** (`?` in the bar); if the summary is unavailable, the original unclassified model-discovery percentage remains visible. No CLI installation is needed. Argon and Claude/GPT retain their existing discovery-based percentages (lowest reported fraction in each group); Argon appears only when discovered. The bridge never guesses a quota window from a model name or reset date.
+- **Quota groups** in the status bar: standard Gemini (Flash and Pro), discovered Gemini 4 Argon, and Claude/GPT models. Standard Gemini shows `5h … / W …` for the backend's explicit five-hour and weekly buckets; hover for each limit's remaining percentage and local reset time. These limits load in the background, are cached for one minute, and clear on refresh or account changes. Missing windows stay **Not reported** (`?` in the bar); if the summary is unavailable, the original unclassified model-discovery percentage remains visible. No CLI installation is needed. Argon and Claude/GPT retain their existing discovery-based percentages (lowest reported fraction in each group); Argon appears only when discovered. The bridge never guesses a quota window from a model name or reset date. Hydrogen and Carbon models are grouped with standard Gemini unless their own entry names Argon.
 - **Account plan and clearer quota details**: the compact bar shows the reported plan alongside Gemini, Argon, and Claude/GPT percentages. Hover for the account, separate quota/reset sections (local time), the number of models actually offered in the picker, and the quota update time. Plan metadata comes from the extension's authenticated account (`loadCodeAssist`, paid tier first), loads in the background, and is cached for five minutes. Missing metadata shows **Not reported**, never an inferred Free/Pro plan; unsuccessful lookups are cached for 30 seconds. Refreshing or changing accounts clears the plan cache.
 - **AI credit balance**: when account metadata reports Google One AI credits, the bar also shows `Credits …` and the tooltip includes a separate balance section. Credits share the plan metadata's five-minute cache; use **Antigravity: Refresh Models and Quota** to request fresh data. Missing/invalid balances show **Not reported**, while an explicit zero remains `0`. This is an account credit balance, separate from Gemini, Argon, and Claude/GPT baseline percentages, and displaying it does not enable spending. See [Google's AI credits guide](https://antigravity.google/docs/cli/credits).
 - **Thinking Effort control** in the picker, next to the model, offering only the tiers the backend can serve.
@@ -55,44 +59,66 @@ rotation. Signing out removes only this extension's copy.
 
 ## Model selection
 
-The locally verified account catalogue on **14 October 2026** contains:
+What the picker offers comes from your account's own discovery response, curated as
+described below. Product lines the bridge understands today:
 
-- **Gemini 3.8 Flash** — High, Medium, and Low variants, combined into one picker entry by default.
-- **Claude Sonnet 4.6 (Thinking)**.
-- **Claude Opus 4.6 (Thinking)**.
+- **Gemini 4 Hydrogen** — Low, Medium, High, and XHigh variants, combined into one
+  picker entry by default. XHigh is only offered when discovery reports an `xhigh`
+  sibling.
+- **Gemini 4 Argon** — Low, Medium, and High, combined into one entry. Plan-gated; see
+  the Argon section below.
+- **Gemini 4 Carbon** — Low, Medium, and High, combined into one entry.
+- **Gemini 3.8 Flash** — High, Medium, and Low, combined into one entry.
+- **Claude Sonnet 4.6 (Thinking)** and **Claude Opus 4.6 (Thinking)**.
 - **GPT-OSS 120B (Medium)**.
+- **Orchestrator (Argon)** — only when discovery reports it; it publishes no effort
+  tiers, so it has no Thinking Effort control.
 
-This is a dated account snapshot, not a fixed availability guarantee. Claude is described
-as **4.6/5.5** because availability can change; the actual picker always uses discovered
-names and IDs. The extension does not synthesize Claude 5.5 model IDs.
+This describes product lines, not a fixed availability guarantee: a line only appears
+if your account's discovery returns it. Claude is described as **4.6/5.5** because
+availability can change; the actual picker always uses discovered names and IDs. The
+extension does not synthesize Claude 5.5 model IDs. The only hardcoded roster is the
+fallback used when discovery fails or returns nothing — it lists Gemini 3.8 Flash,
+Claude Sonnet 4.6, Claude Opus 4.6, and GPT-OSS 120B, and is never merged into a
+successful catalogue.
 
 **Gemini 4 Argon:** [Google lists Argon](https://antigravity.google/docs/models/) for non-trial Google AI Pro, Ultra, and eligible Enterprise accounts. Availability remains account-dependent. The bridge adds no placeholder or guessed ID. When successful discovery returns Argon models, they appear after **Antigravity: Refresh Models and Quota**, combined using only the returned effort tiers, with a separate quota display. The bridge uses the [documented 65,536-token synchronous output limit](https://ai.google.dev/gemini-api/docs/models/gemini-4-argon); generation through the undocumented gateway still needs live verification on an eligible account. See the [quota research notes](docs/research/antigravity-quota-pools.md) for the evidence and limitations.
 
 The default `latest` filters non-chat/internal aliases, duplicate display names, Flash
-Lite, and older Gemini generations. If discovery returns several generations, the
+Lite, plan placeholders the backend marks `disabled`, server-side `*-worker-*`
+aliases, and older Gemini generations. If discovery returns several generations, the
 bridge keeps only the newest per product line, including all of its effort tiers.
 For example, discovering Gemini 3.8 Flash hides Gemini 3 Flash and 3.5 Flash in this
 mode. New Gemini product lines can pass through discovery without a predefined entry.
 
 Set `antigravity.modelSelection` to `all` to include additional discovered generations
-and Flash Lite; non-chat/internal aliases and duplicate display names remain filtered.
-Use `antigravity.hiddenModels` to hide specific IDs. When discovery fails or returns
-an empty catalogue, a conservative fallback uses the verified roster above, never Argon
-or guessed Claude versions. A successful catalogue is not supplemented with fallback entries.
+and Flash Lite; non-chat/internal aliases, `disabled` plan placeholders, `*-worker-*`
+aliases, and duplicate display names remain filtered. Use `antigravity.hiddenModels` to
+hide specific IDs. When discovery fails or returns an empty catalogue, the conservative
+fallback roster described above stands in; it never includes Argon, Hydrogen, Carbon,
+or guessed Claude versions, and it is not merged into a successful catalogue.
 
 ### Effort tiers
 
 Antigravity addresses each effort tier as its own model id, so discovery reports
-"Gemini 3.8 Flash (High)", "(Medium)" and "(Low)" as three separate models.
+"Gemini 3.8 Flash (High)", "(Medium)" and "(Low)" as three separate models, and
+"Gemini 4 Hydrogen (XHigh)" as a fourth for Hydrogen.
 
 By default they are folded into one entry with a **Thinking Effort** control beside the
-model in the picker, the way Copilot's own models work. Only tiers reported by
-discovery are offered. If a model has only High and Low variants, its
-control does not offer Medium.
+model in the picker, the way Copilot's own models work. The tier is read from the
+model id, so folding still works when discovery sends the same bare display name
+("Gemini 4 Hydrogen") for every tier instead of suffixing it. Only tiers reported by
+discovery are offered, so **XHigh** appears for Gemini 4 Hydrogen but not for a line
+that publishes only Low/Medium/High. If a model has only High and Low variants, its
+control does not offer Medium. Asking a model for a tier it does not publish resolves
+to the closest tier it does, so an unavailable choice never produces an unroutable
+model id.
 
-`antigravity.reasoningEffort` sets the starting value; whatever is chosen in the picker
-wins for that request. Set `antigravity.effortSelection` to `tiers` to go back to one
-picker row per tier.
+`antigravity.reasoningEffort` accepts `off`, `low`, `medium`, `high`, and `xhigh`; it
+sets the starting value, and whatever is chosen in the picker wins for that request.
+A model that cannot serve the configured value starts on `high` rather than silently
+upgrading to the most expensive tier it publishes. Set `antigravity.effortSelection` to
+`tiers` to go back to one picker row per tier.
 
 ## Requirements
 
@@ -302,7 +328,7 @@ The gateway speaks a Gemini dialect for **every** model family, Claude included;
 ## Contributors
 
 - [@SamiMitwalli](https://github.com/SamiMitwalli) — Claude tool-call compatibility ([PR #2](https://github.com/lutfi238/antigravity-for-copilot-vscode/pull/2)).
-- [@Jollyproxi](https://github.com/Jollyproxi) — Gemini 4 Argon quota display, model handling, and CLI fingerprint update ([PR #4](https://github.com/lutfi238/antigravity-for-copilot-vscode/pull/4)).
+- [@Jollyproxi](https://github.com/Jollyproxi) — Gemini 4 Argon quota display, model handling, and CLI fingerprint update ([PR #4](https://github.com/lutfi238/antigravity-for-copilot-vscode/pull/4)); Gemini 4 Hydrogen XHigh tiers, Orchestrator discovery, and worker/disabled catalogue filtering ([issue #5](https://github.com/lutfi238/antigravity-for-copilot-vscode/issues/5), [PR #6](https://github.com/lutfi238/antigravity-for-copilot-vscode/pull/6)).
 
 ## License
 

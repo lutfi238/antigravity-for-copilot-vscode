@@ -154,10 +154,11 @@
             "off",
             "low",
             "medium",
-            "high"
+            "high",
+            "xhigh"
           ],
           "default": "medium",
-          "markdownDescription": "Default thinking effort, used when no **Thinking Effort** is selected in the model picker. The picker selection always wins for that request."
+          "markdownDescription": "Default thinking effort, used when no **Thinking Effort** is selected in the model picker. The picker selection always wins for that request. Models that publish no `XHigh` variant fall back to their strongest available tier."
         },
         "antigravity.showThinking": {
           "type": "boolean",

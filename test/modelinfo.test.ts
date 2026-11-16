@@ -33,6 +33,22 @@ describe('availableEfforts', () => {
 
 	it('offers none where there is nothing to vary', () => {
 		expect(availableEfforts(spec('gpt-oss-120b-medium', 'x'))).toEqual([]);
+		expect(availableEfforts(spec('gemini-pro-orchestrator-g1-pro', 'Orchestrator (Argon)'))).toEqual([]);
+	});
+
+	it('offers xhigh when a collapsed model publishes an XHigh variant', () => {
+		const hydrogen = collapseTiers([
+			spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen (High)'),
+			spec('gemini-4-hydrogen-xhigh', 'Gemini 4 Hydrogen (XHigh)'),
+			spec('gemini-4-hydrogen-medium', 'Gemini 4 Hydrogen (Medium)'),
+			spec('gemini-4-hydrogen-low', 'Gemini 4 Hydrogen (Low)'),
+		])[0];
+		expect(availableEfforts(hydrogen)).toEqual(['low', 'medium', 'high', 'xhigh']);
+	});
+
+	it('never offers xhigh to a numeric-budget model', () => {
+		// Claude takes a budget ladder; there is no xhigh rung to send it.
+		expect(availableEfforts(spec('claude-opus-4-6-thinking', 'x'))).not.toContain('xhigh');
 	});
 });
 
@@ -57,6 +73,24 @@ describe('buildConfigurationSchema', () => {
 	it('falls back to the strongest tier when the default is unavailable', () => {
 		// Pro has no medium; defaulting to it would show a value the model cannot serve.
 		expect(buildConfigurationSchema(pro, 1_000_000, 'medium')!.properties.reasoningEffort!.default).toBe('high');
+	});
+
+	it('prefers high over xhigh when the configured default is unavailable', () => {
+		// An unset effort must not silently buy the most expensive tier.
+		const hydrogen = collapseTiers([
+			spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen (High)'),
+			spec('gemini-4-hydrogen-xhigh', 'Gemini 4 Hydrogen (XHigh)'),
+			spec('gemini-4-hydrogen-medium', 'Gemini 4 Hydrogen (Medium)'),
+			spec('gemini-4-hydrogen-low', 'Gemini 4 Hydrogen (Low)'),
+		])[0];
+		const schema = buildConfigurationSchema(hydrogen, 983_040, 'medium')!;
+		expect(schema.properties.reasoningEffort).toMatchObject({
+			enum: ['low', 'medium', 'high', 'xhigh'],
+			enumItemLabels: ['Low', 'Medium', 'High', 'XHigh'],
+			default: 'medium',
+		});
+		// A tier the model cannot serve falls back to high, not xhigh.
+		expect(buildConfigurationSchema(flash, 983_040, 'xhigh')!.properties.reasoningEffort!.default).toBe('high');
 	});
 
 	it('emits no schema for a model with nothing to configure', () => {
@@ -111,5 +145,9 @@ describe('resolveEffort', () => {
 	it('ignores values that are not a known effort', () => {
 		expect(resolveEffort({ modelConfiguration: { reasoningEffort: 'turbo' } }, 'low').effort).toBe('low');
 		expect(resolveEffort({ modelConfiguration: { reasoningEffort: 7 } }, 'low').source).toBe('setting');
+	});
+
+	it('accepts xhigh from the picker', () => {
+		expect(resolveEffort({ modelConfiguration: { reasoningEffort: 'xhigh' } }, 'low').effort).toBe('xhigh');
 	});
 });

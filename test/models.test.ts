@@ -159,14 +159,24 @@ describe('fetchCatalog', () => {
 		expect(catalog.quota.gemini?.resetTime).toBe('2026-10-18T08:00:00Z');
 	});
 
-	it('recognizes Gemini Argon display aliases without classifying unrelated Argon names', async () => {
+	it('recognizes Gemini Argon display aliases and Orchestrator (Argon) without classifying unrelated Argon names', async () => {
 		const catalog = await fetchCatalog(clientReturning({ models: {
 			Chat_987: { displayName: 'Gemini 4 Argon', quotaInfo: { remainingFraction: 0.7 } },
+			'gemini-pro-orchestrator-g1-pro': { displayName: 'Orchestrator (Argon)', quotaInfo: { remainingFraction: 0.55 } },
 			'claude-sonnet-4-6': { displayName: 'Claude Sonnet (Argon integration)', quotaInfo: { remainingFraction: 0.2 } },
 			'argon-helper': { displayName: 'Argon helper', quotaInfo: { remainingFraction: 0 } },
 		} }), 'op', 'proj');
-		expect(catalog.quota.argon).toMatchObject({ remainingFraction: 0.7, modelCount: 1 });
+		expect(catalog.quota.argon).toMatchObject({ remainingFraction: 0.55, modelCount: 2 });
 		expect(catalog.quota.claude).toMatchObject({ remainingFraction: 0.2, modelCount: 1 });
+	});
+
+	it('skips disabled gateway models so plan placeholders do not enter the catalog or quota', async () => {
+		const catalog = await fetchCatalog(clientReturning({ models: {
+			'gemini-3.8-flash-high': { displayName: 'Gemini 3.8 Flash (High)', quotaInfo: { remainingFraction: 0.9 } },
+			'gemini-4-carbon-disabled': { displayName: 'Gemini 4 Carbon', disabled: true, quotaInfo: { remainingFraction: 0 } },
+		} }), 'op', 'proj');
+		expect(catalog.models.map((model) => model.id)).toEqual(['gemini-3.8-flash-high']);
+		expect(catalog.quota.gemini).toMatchObject({ remainingFraction: 0.9, modelCount: 1 });
 	});
 
 	it('retains reported Gemini quota when another Gemini model omits it or uses an internal alias', async () => {
@@ -486,6 +496,29 @@ describe('spec — output limits', () => {
 		expect(spec('gemini-3-flash-agent', 'x').maxOutputTokens).toBe(65_536);
 	});
 
+	it.each(['xhigh', 'high', 'medium', 'low'])('assigns Hydrogen limits and the %s reasoning tier', (tier) => {
+		expect(spec(`gemini-4-hydrogen-${tier}`, `Gemini 4 Hydrogen (${tier})`)).toMatchObject({
+			family: 'gemini', contextWindow: 1_048_576, maxOutputTokens: 65_536,
+			thinkingStyle: 'model-id-tier', thinkingTier: tier,
+		});
+	});
+
+	it('gives Orchestrator (Argon) the synchronous limit without inventing an effort tier', () => {
+		// The id encodes no tier, so the picker must not offer a Thinking Effort control.
+		expect(spec('gemini-pro-orchestrator-g1-pro', 'Orchestrator (Argon)')).toMatchObject({
+			family: 'gemini', contextWindow: 1_048_576, maxOutputTokens: 65_536,
+			thinkingStyle: 'model-id-tier', thinkingTier: undefined,
+		});
+	});
+
+	it.each(['high', 'medium', 'low'])('gives Carbon the synchronous limit and the %s tier', (tier) => {
+		// Carbon must not fall through to the Pro cap: the name carries the line, not the id.
+		expect(spec(`gemini-4-carbon-${tier}`, `Gemini 4 Carbon (${tier})`)).toMatchObject({
+			family: 'gemini', contextWindow: 1_048_576, maxOutputTokens: 65_536,
+			thinkingStyle: 'model-id-tier', thinkingTier: tier,
+		});
+	});
+
 	it('keeps the other families on their own limits', () => {
 		expect(spec('claude-opus-4-6-thinking', 'x').maxOutputTokens).toBe(64_000);
 		expect(spec('gpt-oss-120b-medium', 'x').maxOutputTokens).toBe(32_768);
@@ -559,5 +592,140 @@ describe('curateModels — newest discovered generation', () => {
 		expect(model.tierVariants).toEqual({ high: 'gemini-4.1-argon-high', low: 'gemini-4.1-argon-low' });
 		expect(resolveTierSpec(model, 'medium')).toMatchObject({ id: 'gemini-4.1-argon-high', thinkingTier: 'high' });
 		expect(curateModels(raw, true).some(model => model.id === 'gemini-4-argon-high')).toBe(true);
+	});
+
+	it('collapses Hydrogen tiers, keeps Orchestrator, and drops worker/disabled aliases', () => {
+		const raw = [
+			spec('gemini-4-argon-medium', 'Gemini 4 Argon (Medium)'),
+			spec('gemini-4-argon-high', 'Gemini 4 Argon (High)'),
+			spec('gemini-4-argon-low', 'Gemini 4 Argon (Low)'),
+			spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen (High)'),
+			spec('gemini-4-hydrogen-xhigh', 'Gemini 4 Hydrogen (XHigh)'),
+			spec('gemini-4-hydrogen-medium', 'Gemini 4 Hydrogen (Medium)'),
+			spec('gemini-4-hydrogen-low', 'Gemini 4 Hydrogen (Low)'),
+			spec('gemini-pro-orchestrator-g1-pro', 'Orchestrator (Argon)'),
+			spec('gemini-flash-worker-agy', 'Gemini Flash'),
+			spec('gemini-4-carbon-disabled', 'Gemini 4 Carbon'),
+		];
+		const curated = curateModels(raw, false);
+		expect(curated.map(model => model.id)).not.toContain('gemini-flash-worker-agy');
+		expect(curated.map(model => model.id)).not.toContain('gemini-4-carbon-disabled');
+		expect(curated.map(model => model.id)).toContain('gemini-pro-orchestrator-g1-pro');
+
+		const collapsed = collapseTiers(curated);
+		const hydrogen = collapsed.find(model => model.name === 'Gemini 4 Hydrogen')!;
+		// `high` represents the group, so an unset effort is not an XHigh upgrade.
+		expect(hydrogen.id).toBe('gemini-4-hydrogen-high');
+		expect(hydrogen.tierVariants).toEqual({
+			high: 'gemini-4-hydrogen-high',
+			xhigh: 'gemini-4-hydrogen-xhigh',
+			medium: 'gemini-4-hydrogen-medium',
+			low: 'gemini-4-hydrogen-low',
+		});
+		expect(resolveTierSpec(hydrogen, 'xhigh')).toMatchObject({
+			id: 'gemini-4-hydrogen-xhigh',
+			thinkingTier: 'xhigh',
+		});
+
+		// A model with no xhigh sibling falls back rather than producing a 404 id.
+		const argon = collapsed.find(model => model.name === 'Gemini 4 Argon')!;
+		expect(resolveTierSpec(argon, 'xhigh')).toMatchObject({
+			id: 'gemini-4-argon-high',
+			thinkingTier: 'high',
+		});
+	});
+
+	/**
+	 * The gateway does not always suffix the tier onto the display name. When every tier
+	 * arrives as a bare "Gemini 4 Hydrogen", grouping by name alone finds nothing to fold:
+	 * curation used to dedupe the siblings away and the picker silently lost its Thinking
+	 * Effort control. These fixtures pin that payload shape so it cannot regress.
+	 */
+	describe('bare display names (tier only in the model id)', () => {
+		const bare = (...ids: string[]) => ids.map((id) => spec(id, 'Gemini 4 Hydrogen'));
+
+		it('keeps every tier sibling through curation', () => {
+			const curated = curateModels(
+				bare('gemini-4-hydrogen-high', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-low', 'gemini-4-hydrogen-xhigh'),
+				false,
+			);
+			expect(curated.map((model) => model.id)).toEqual([
+				'gemini-4-hydrogen-high',
+				'gemini-4-hydrogen-medium',
+				'gemini-4-hydrogen-low',
+				'gemini-4-hydrogen-xhigh',
+			]);
+		});
+
+		it('derives the tiers from the ids and folds them into one entry', () => {
+			const collapsed = collapseTiers(
+				curateModels(
+					bare('gemini-4-hydrogen-high', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-low', 'gemini-4-hydrogen-xhigh'),
+					false,
+				),
+			);
+			expect(collapsed).toHaveLength(1);
+			expect(collapsed[0]).toMatchObject({
+				name: 'Gemini 4 Hydrogen',
+				id: 'gemini-4-hydrogen-high',
+				thinkingTier: 'high',
+				tierVariants: {
+					high: 'gemini-4-hydrogen-high',
+					medium: 'gemini-4-hydrogen-medium',
+					low: 'gemini-4-hydrogen-low',
+					xhigh: 'gemini-4-hydrogen-xhigh',
+				},
+			});
+		});
+
+		it('resolves each requested effort to its bare-named sibling', () => {
+			const model = collapseTiers(
+				curateModels(
+					bare('gemini-4-hydrogen-high', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-low', 'gemini-4-hydrogen-xhigh'),
+					false,
+				),
+			)[0];
+			expect(resolveTierSpec(model, 'xhigh')).toMatchObject({ id: 'gemini-4-hydrogen-xhigh', thinkingTier: 'xhigh' });
+			expect(resolveTierSpec(model, 'low')).toMatchObject({ id: 'gemini-4-hydrogen-low', thinkingTier: 'low' });
+			expect(resolveTierSpec(model, 'medium')).toMatchObject({ id: 'gemini-4-hydrogen-medium', thinkingTier: 'medium' });
+		});
+
+		it('still collapses a bare-named line that publishes no xhigh', () => {
+			const collapsed = collapseTiers(
+				curateModels(
+					['high', 'medium', 'low'].map((tier) => spec(`gemini-4-carbon-${tier}`, 'Gemini 4 Carbon')),
+					false,
+				),
+			);
+			expect(collapsed).toHaveLength(1);
+			expect(collapsed[0].tierVariants).toEqual({
+				high: 'gemini-4-carbon-high',
+				medium: 'gemini-4-carbon-medium',
+				low: 'gemini-4-carbon-low',
+			});
+		});
+
+		it('does not merge two different bare-named models that share no tier', () => {
+			// Distinct names must never be grouped just because both lack a tier label.
+			const collapsed = collapseTiers(
+				curateModels(
+					[spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen'), spec('gemini-4-carbon-high', 'Gemini 4 Carbon')],
+					false,
+				),
+			);
+			expect(collapsed.map((model) => model.name).sort()).toEqual(['Gemini 4 Carbon', 'Gemini 4 Hydrogen']);
+		});
+
+		it('keeps suffixed payloads collapsing exactly as before', () => {
+			// Regression guard: the id fallback must not change the already-working shape.
+			const collapsed = collapseTiers(
+				curateModels(
+					['high', 'medium', 'low'].map((tier) => spec(`gemini-3.8-flash-${tier}`, `Gemini 3.8 Flash (${tier})`)),
+					false,
+				),
+			);
+			expect(collapsed).toHaveLength(1);
+			expect(collapsed[0].name).toBe('Gemini 3.8 Flash');
+		});
 	});
 });

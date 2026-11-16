@@ -8,6 +8,14 @@ export type Family = 'gemini' | 'claude' | 'gpt-oss';
 /** Display standard Gemini, discovered Gemini Argon, and Claude/GPT separately. */
 export type QuotaGroup = 'gemini' | 'argon' | 'claude';
 
+/**
+ * Effort tiers Antigravity addresses as separate model ids.
+ *
+ * `xhigh` is published by Gemini 4 Hydrogen. The CLI also understands `max`, but no
+ * discovered model id encodes it yet, so it is not offered here.
+ */
+export type ThinkingTier = 'low' | 'medium' | 'high' | 'xhigh';
+
 export interface ModelSpec {
 	id: string;
 	name: string;
@@ -21,29 +29,32 @@ export interface ModelSpec {
 	 */
 	thinkingStyle: 'none' | 'model-id-tier' | 'numeric-budget';
 	/** Effort tier parsed out of the model id, for models that encode it there. */
-	thinkingTier?: 'low' | 'medium' | 'high';
+	thinkingTier?: ThinkingTier;
 	/**
 	 * Set on a collapsed entry: the sibling model ids for each effort tier, so the
 	 * request can pick one without the picker carrying a row per tier.
 	 */
-	tierVariants?: Partial<Record<'low' | 'medium' | 'high', string>>;
+	tierVariants?: Partial<Record<ThinkingTier, string>>;
 }
 
 /**
- * Recovers the effort tier from a model id. `-agent` marks the top tier, and 3.5's
- * `-extra-low` is its lowest — neither follows the plain `-low`/`-medium`/`-high`
- * pattern the other generations use.
+ * Recovers the effort tier from a model id. `-agent` marks the top tier, `-xhigh`
+ * marks extra-high (Gemini 4 Hydrogen), and 3.5's `-extra-low` is its lowest — none
+ * of those follow the plain `-low`/`-medium`/`-high` suffix pattern.
  */
-export function tierOf(id: string): 'low' | 'medium' | 'high' | undefined {
+export function tierOf(id: string): ThinkingTier | undefined {
 	const lower = id.toLowerCase();
 	if (lower.endsWith('-agent')) {
 		return 'high';
+	}
+	if (lower.endsWith('-xhigh') || lower.endsWith('-extra-high')) {
+		return 'xhigh';
 	}
 	if (lower.endsWith('-extra-low') || lower.endsWith('-minimal')) {
 		return 'low';
 	}
 	const match = /-(low|medium|high)$/.exec(lower);
-	return match ? (match[1] as 'low' | 'medium' | 'high') : undefined;
+	return match ? (match[1] as ThinkingTier) : undefined;
 }
 
 export interface QuotaBucket {
@@ -73,6 +84,8 @@ interface FetchAvailableModelEntry {
 	quotaInfo?: { remainingFraction?: number; resetTime?: string };
 	displayName?: string;
 	modelName?: string;
+	/** Plan placeholders the backend lists but will not route a turn to. */
+	disabled?: boolean;
 }
 
 /**
@@ -118,6 +131,9 @@ export async function fetchCatalog(client: GatewayClient, op: string, project: s
 	const quota: Catalog['quota'] = {};
 
 	for (const [modelId, entry] of entries) {
+		if (entry.disabled === true) {
+			continue;
+		}
 		models.push(spec(modelId, entry.displayName || prettify(modelId)));
 
 		const group = classify(modelId, entry.displayName ?? entry.modelName);
@@ -136,10 +152,11 @@ export async function fetchCatalog(client: GatewayClient, op: string, project: s
 /**
  * Model ids the gateway lists but that have no business in a chat picker:
  * `Tab_*` are inline-autocomplete models, `Chat_NNNNN` are internal numeric aliases
- * for models already listed under real names, `*tiered*` are server-side routing
- * aliases, and image models cannot answer a chat turn.
+ * for models already listed under real names, `*tiered*` and `*-worker-*` are
+ * server-side routing/subagent aliases, `*-disabled` entries are plan placeholders
+ * the backend will not route, and image models cannot answer a chat turn.
  */
-const NON_CHAT = /^tab[_-]|^chat[_-]?\d+$|tiered|image/i;
+const NON_CHAT = /^tab[_-]|^chat[_-]?\d+$|tiered|image|(?:^|[_-])(?:worker|disabled)(?:[_-]|$)/i;
 
 /** Compatibility filter for older catalogues; not a promise about today's native list. */
 const MIN_GEMINI_GENERATION = 3;
@@ -169,11 +186,17 @@ function parseGeminiLine(id: string, name: string): GeminiLine | null {
 		? 'flash-lite'
 		: /flash/.test(text)
 			? 'flash'
-			: /pro/.test(text)
-				? 'pro'
-				: /argon/.test(text)
-					? 'argon'
-					: null;
+			: /orchestrator/.test(text)
+				? 'orchestrator'
+				: /pro/.test(text)
+					? 'pro'
+					: /argon/.test(text)
+						? 'argon'
+						: /hydrogen/.test(text)
+							? 'hydrogen'
+							: /carbon/.test(text)
+								? 'carbon'
+								: null;
 	if (!line) {
 		return null;
 	}
@@ -195,9 +218,13 @@ export function curateModels(models: ModelSpec[], keepAllGenerations: boolean): 
 
 	// Exact display-name duplicates are common (four separate ids all render as
 	// "Gemini 3.1 Flash Lite"); the picker cannot distinguish them, so keep the first.
+	// Effort siblings are the exception: when discovery sends a bare name for every tier
+	// ("Gemini 4 Hydrogen" for all of high/medium/low/xhigh), the name alone is not a
+	// duplicate key. Include the tier, or curation discards the variants before
+	// collapseTiers can fold them into one entry with a Thinking Effort control.
 	const seen = new Set<string>();
 	const deduped = chatModels.filter((model) => {
-		const key = model.name.toLowerCase();
+		const key = `${baseName(model.name).toLowerCase()}|${model.thinkingTier ?? ''}`;
 		if (seen.has(key)) {
 			return false;
 		}
@@ -244,9 +271,11 @@ export function curateModels(models: ModelSpec[], keepAllGenerations: boolean): 
 	});
 }
 
-/** Strips a trailing "(High)" / "(Medium)" / "(Low)" from a display name. */
+/** Strips a trailing "(XHigh)" / "(High)" / "(Medium)" / "(Low)" from a display name. */
 function baseName(name: string): string {
-	return name.replace(/\s*\((?:high|medium|low|minimal|extra[\s-]?low)\)\s*$/i, '').trim();
+	return name
+		.replace(/\s*\((?:xhigh|extra[\s-]?high|high|medium|low|minimal|extra[\s-]?low)\)\s*$/i, '')
+		.trim();
 }
 
 /**
@@ -259,6 +288,8 @@ function baseName(name: string): string {
  * per-request Thinking Effort configuration.
  */
 export function collapseTiers(models: ModelSpec[]): ModelSpec[] {
+	// Group by display name with any trailing tier label removed. When discovery sends a
+	// bare name for every tier, that label is absent and the name still groups them.
 	const groups = new Map<string, ModelSpec[]>();
 	for (const model of models) {
 		const key = baseName(model.name);
@@ -272,38 +303,55 @@ export function collapseTiers(models: ModelSpec[]): ModelSpec[] {
 
 	const out: ModelSpec[] = [];
 	for (const [base, group] of groups) {
-		const tiered = group.filter((model) => model.thinkingTier);
-		if (tiered.length < 2) {
+		// The tier normally comes from the id (via `spec`). A bare-name payload gives every
+		// sibling the same name, so fall back to the id suffix here as well: otherwise the
+		// group looks untiered and the picker silently loses its Thinking Effort control.
+		const tiered = group.map((model) => ({
+			model,
+			tier: model.thinkingTier ?? tierOf(model.id),
+		}));
+		const withTier = tiered.filter((entry) => entry.tier);
+		if (withTier.length < 2) {
 			out.push(...group);
 			continue;
 		}
 
 		const tierVariants: NonNullable<ModelSpec['tierVariants']> = {};
-		for (const model of tiered) {
+		for (const { model, tier } of withTier) {
 			// First id wins per tier, matching discovery order.
-			const tier = model.thinkingTier!;
-			tierVariants[tier] = tierVariants[tier] ?? model.id;
+			tierVariants[tier!] = tierVariants[tier!] ?? model.id;
 		}
 
-		// Represent the group with its strongest tier so an unset effort is not a downgrade.
+		// Represent the group with its strongest standard tier so an unset effort is not a
+		// downgrade. `high` outranks `xhigh` deliberately: the group is addressed by its
+		// representative id, and `high` is the tier every generation publishes.
 		const preferred =
-			tiered.find((model) => model.thinkingTier === 'high') ??
-			tiered.find((model) => model.thinkingTier === 'medium') ??
-			tiered[0];
+			withTier.find((entry) => entry.tier === 'high') ??
+			withTier.find((entry) => entry.tier === 'xhigh') ??
+			withTier.find((entry) => entry.tier === 'medium') ??
+			withTier[0];
 
-		out.push({ ...preferred, name: base, tierVariants });
-		out.push(...group.filter((model) => !model.thinkingTier));
+		// Carry the resolved tier on the representative so translation and the picker agree.
+		out.push({ ...preferred.model, thinkingTier: preferred.tier!, name: base, tierVariants });
+		out.push(...tiered.filter((entry) => !entry.tier).map((entry) => entry.model));
 	}
 	return out;
 }
 
 /** Picks the sibling id matching the requested effort, if the entry is collapsed. */
-export function resolveTier(model: ModelSpec, effort: 'off' | 'low' | 'medium' | 'high'): string {
+export function resolveTier(model: ModelSpec, effort: 'off' | ThinkingTier): string {
 	if (!model.tierVariants) {
 		return model.id;
 	}
-	const wanted: 'low' | 'medium' | 'high' = effort === 'off' ? 'low' : effort;
-	const order: Array<'low' | 'medium' | 'high'> = wanted === 'high' ? ['high', 'medium', 'low'] : wanted === 'medium' ? ['medium', 'high', 'low'] : ['low', 'medium', 'high'];
+	const wanted: ThinkingTier = effort === 'off' ? 'low' : effort;
+	const order: ThinkingTier[] =
+		wanted === 'xhigh'
+			? ['xhigh', 'high', 'medium', 'low']
+			: wanted === 'high'
+				? ['high', 'xhigh', 'medium', 'low']
+				: wanted === 'medium'
+					? ['medium', 'high', 'xhigh', 'low']
+					: ['low', 'medium', 'high', 'xhigh'];
 	for (const tier of order) {
 		const id = model.tierVariants[tier];
 		if (id) {
@@ -314,7 +362,7 @@ export function resolveTier(model: ModelSpec, effort: 'off' | 'low' | 'medium' |
 }
 
 /** Keep translation aligned with the resolved wire id, including missing-tier fallback. */
-export function resolveTierSpec(model: ModelSpec, effort: 'off' | 'low' | 'medium' | 'high'): ModelSpec {
+export function resolveTierSpec(model: ModelSpec, effort: 'off' | ThinkingTier): ModelSpec {
 	const id = resolveTier(model, effort);
 	return id === model.id ? model : { ...model, id, thinkingTier: tierOf(id) };
 }
@@ -378,6 +426,7 @@ export function familyOf(modelId: string): Family {
 export function spec(id: string, name: string): ModelSpec {
 	const family = familyOf(id);
 	const lower = id.toLowerCase();
+	const combined = `${lower} ${name.toLowerCase()}`;
 
 	// The gateway does not report limits, so they come from the family — and Gemini Pro
 	// caps output one token below Flash and Argon's documented synchronous limit.
@@ -390,7 +439,11 @@ export function spec(id: string, name: string): ModelSpec {
 				? { context: 131_072, output: 32_768 }
 				: lower.includes('image')
 					? { context: 66_000, output: 33_000 }
-					: lower.includes('flash') || lower.includes('argon')
+					: lower.includes('flash') ||
+						  combined.includes('argon') ||
+						  combined.includes('hydrogen') ||
+						  combined.includes('carbon') ||
+						  combined.includes('orchestrator')
 						? { context: 1_048_576, output: 65_536 }
 						: { context: 1_048_576, output: 65_535 };
 
