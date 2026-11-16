@@ -167,7 +167,7 @@ describe('AntigravityProvider', () => {
 			active: vi.fn().mockResolvedValue({ email: 'test@example.com', refreshToken: 'test-refresh-token' }),
 		} as any;
 		const projects = { resolve: vi.fn().mockResolvedValue('project') } as any;
-		const statusBar = { update: vi.fn(), setSignedOut: vi.fn() } as any;
+		const statusBar = { update: vi.fn(), setSignedOut: vi.fn(), setPlan: vi.fn(), setGeminiQuota: vi.fn(), setLoading: vi.fn() } as any;
 		const context = { subscriptions: [] } as any;
 		const provider = new AntigravityProvider(context, store, {} as any, client, projects, statusBar);
 		const parts: unknown[] = [];
@@ -725,7 +725,7 @@ describe('explicit refresh', () => {
 		const account = { email: 'force@example.invalid', refreshToken: 'synthetic' };
 		const store = { active: vi.fn().mockResolvedValue(account), onDidChange: () => ({ dispose() {} }) };
 		const client = { postJson: vi.fn().mockResolvedValue({ models: { 'gemini-3.8-flash-high': {} } }) };
-		const statusBar = { update: vi.fn(), setSignedOut: vi.fn(), setLoading: vi.fn() };
+		const statusBar = { update: vi.fn(), setSignedOut: vi.fn(), setLoading: vi.fn(), setPlan: vi.fn(), setGeminiQuota: vi.fn() };
 		const summaries = { peek: vi.fn(), get: vi.fn().mockResolvedValue({}), invalidate: vi.fn() };
 		const plans = { peek: vi.fn(), get: vi.fn().mockResolvedValue({}), invalidate: vi.fn() };
 		const provider = new AntigravityProvider(
@@ -783,7 +783,7 @@ describe('window-focus refresh', () => {
 		const account = { email: 'focus@example.invalid', refreshToken: 'synthetic' };
 		const store = { active: vi.fn().mockResolvedValue(account), onDidChange: () => ({ dispose() {} }) };
 		const client = { postJson: vi.fn().mockResolvedValue({ models: { 'gemini-3.8-flash-high': {} } }) };
-		const statusBar = { update: vi.fn(), setSignedOut: vi.fn(), setLoading: vi.fn() };
+		const statusBar = { update: vi.fn(), setSignedOut: vi.fn(), setLoading: vi.fn(), setPlan: vi.fn(), setGeminiQuota: vi.fn() };
 		const context = { subscriptions: [] as { dispose(): void }[] };
 		const provider = new AntigravityProvider(
 			context as any, store as any, {} as any, client as any,

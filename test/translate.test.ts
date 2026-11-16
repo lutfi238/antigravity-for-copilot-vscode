@@ -240,6 +240,121 @@ describe('buildRequest — efficient tool guidance', () => {
 	});
 });
 
+describe('buildRequest — realistic Agent tool set', () => {
+	// A Copilot Agent turn normally offers the full built-in set plus MCP tools whose
+	// names contain slashes. Every one has to survive declaration and round-trip.
+	const agentTools: vscode.LanguageModelChatTool[] = [
+		{ name: 'copilot_readFile', description: 'Read a file', inputSchema: { type: 'object', properties: { filePath: { type: 'string' } }, required: ['filePath'], additionalProperties: false } },
+		{ name: 'copilot_listDirectory', description: 'List a directory', inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
+		{ name: 'copilot_findTextInFiles', description: 'Search text', inputSchema: { type: 'object', properties: { query: { type: 'object', properties: { pattern: { type: 'string' } } } } } },
+		{ name: 'copilot_runInTerminal', description: 'Run a command', inputSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } },
+		{ name: 'mcp_github/search_issues', description: 'Search issues', inputSchema: { type: 'object', properties: { q: { type: 'string' }, state: { type: 'string', enum: ['open', 'closed'] } } } },
+		{ name: 'no_schema_tool', description: 'Takes no input' },
+	];
+
+	it('declares every offered tool exactly once, with a resolvable name', () => {
+		const { request, names } = build([userMessage(new vscode.LanguageModelTextPart('inspect'))], agentTools);
+		const declarations = request.tools?.[0]?.functionDeclarations ?? [];
+		expect(declarations).toHaveLength(agentTools.length);
+		expect(new Set(declarations.map((d) => d.name)).size).toBe(agentTools.length);
+		for (const tool of agentTools) {
+			expect(names.resolve(names.register(tool.name))).toBe(tool.name);
+		}
+	});
+
+	it('keeps two tools distinct when their sanitized names collide', () => {
+		// `mcp/a-b` and `mcp/a_b` both sanitize to a valid name; neither may shadow the other.
+		const { request, names } = build([userMessage(new vscode.LanguageModelTextPart('go'))], [
+			{ name: 'mcp/a-b', description: 'dash', inputSchema: { type: 'object', properties: {} } },
+			{ name: 'mcp/a_b', description: 'underscore', inputSchema: { type: 'object', properties: {} } },
+		]);
+		const declarations = request.tools?.[0]?.functionDeclarations ?? [];
+		expect(new Set(declarations.map((d) => d.name)).size).toBe(2);
+		expect(declarations.map((d) => names.resolve(d.name))).toEqual(['mcp/a-b', 'mcp/a_b']);
+	});
+
+	it('keeps names distinct when truncation would otherwise merge them', () => {
+		const long = 'x'.repeat(70);
+		const { request, names } = build([userMessage(new vscode.LanguageModelTextPart('go'))], [
+			{ name: `${long}_a`, description: 'A', inputSchema: { type: 'object', properties: {} } },
+			{ name: `${long}_b`, description: 'B', inputSchema: { type: 'object', properties: {} } },
+		]);
+		const declarations = request.tools?.[0]?.functionDeclarations ?? [];
+		expect(new Set(declarations.map((d) => d.name)).size).toBe(2);
+		expect(declarations.map((d) => names.resolve(d.name))).toEqual([`${long}_a`, `${long}_b`]);
+	});
+
+	it('emits a distinct call id for each of several calls in one response', () => {
+		const parts: unknown[] = [];
+		const state = newEmitState();
+		emitChunk({
+			candidates: [{ content: { parts: [
+				{ functionCall: { name: 'copilot_readFile', args: { filePath: 'a.ts' } } },
+				{ functionCall: { name: 'copilot_readFile', args: { filePath: 'b.ts' } } },
+				{ functionCall: { name: 'copilot_listDirectory', args: { path: '.' } } },
+			] } }],
+		} as GenerateContentResponse, {
+			names: new ToolNameMap(), signatures: new SignatureCache(),
+			progress: { report: (part: unknown) => parts.push(part) },
+		} as any, state);
+		const calls = parts.filter((p): p is vscode.LanguageModelToolCallPart => p instanceof vscode.LanguageModelToolCallPart);
+		expect(calls).toHaveLength(3);
+		expect(new Set(calls.map((c) => c.callId)).size).toBe(3);
+		expect(calls.map((c) => c.name)).toEqual(['copilot_readFile', 'copilot_readFile', 'copilot_listDirectory']);
+	});
+});
+
+describe('buildRequest — binary tool results', () => {
+	const screenshotTools: vscode.LanguageModelChatTool[] = [
+		{ name: 'screenshot', description: 'Capture the screen', inputSchema: { type: 'object', properties: {} } },
+	];
+	const withResult = (content: unknown[]) => build([
+		userMessage(new vscode.LanguageModelTextPart('capture')),
+		assistantMessage(new vscode.LanguageModelToolCallPart('call_1', 'screenshot', {})),
+		userMessage(new vscode.LanguageModelToolResultPart('call_1', content)),
+	], screenshotTools);
+
+	it('forwards an image from a tool result as inlineData instead of dropping it', () => {
+		// `functionResponse.response` is a protobuf Struct and cannot hold bytes, so the
+		// image has to ride as a sibling part. A byte-count string would hide it from the model.
+		const png = new Uint8Array([137, 80, 78, 71]);
+		const { request } = withResult([
+			new vscode.LanguageModelTextPart('captured'),
+			new vscode.LanguageModelDataPart(png, 'image/png'),
+		]);
+		const parts = request.contents[2].parts;
+		expect(parts).toHaveLength(2);
+		expect(parts[0].functionResponse?.response.output).toBe('captured');
+		expect(parts[1].inlineData?.mimeType).toBe('image/png');
+		expect(Buffer.from(parts[1].inlineData!.data, 'base64')).toEqual(Buffer.from(png));
+	});
+
+	it('still supplies a non-empty output when the result is image-only', () => {
+		const { request } = withResult([new vscode.LanguageModelDataPart(new Uint8Array([1, 2]), 'image/jpeg')]);
+		const parts = request.contents[2].parts;
+		expect(parts[0].functionResponse?.response.output).toBe('(image attached)');
+		expect(parts[1].inlineData?.mimeType).toBe('image/jpeg');
+	});
+
+	it('flattens text-only results into a single part with no attachment', () => {
+		const { request } = withResult([new vscode.LanguageModelTextPart('body')]);
+		expect(request.contents[2].parts).toHaveLength(1);
+		expect(request.contents[2].parts[0].functionResponse?.response.output).toBe('body');
+	});
+
+	it('keeps an empty result non-empty', () => {
+		const { request } = withResult([]);
+		expect(request.contents[2].parts[0].functionResponse?.response.output).toBe('(no output)');
+	});
+
+	it('folds text-like data into the output and never as inlineData', () => {
+		const { request } = withResult([new vscode.LanguageModelDataPart(new TextEncoder().encode('{"ok":true}'), 'application/json')]);
+		const parts = request.contents[2].parts;
+		expect(parts).toHaveLength(1);
+		expect(parts[0].functionResponse?.response.output).toBe('{"ok":true}');
+	});
+});
+
 describe('buildRequest — tool call ids', () => {
 	function buildWithIds(model: ModelSpec, sendToolCallIds: boolean) {
 		return buildRequest(

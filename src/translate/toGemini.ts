@@ -119,13 +119,26 @@ function buildContents(
 				}
 				parts.push(part);
 			} else if (item instanceof vscode.LanguageModelToolResultPart) {
+				// Gemini pairs a response to its call by name, and `response` is a protobuf
+				// Struct: it only carries JSON values, so an image cannot live inside it.
+				// Return the call plus any non-text payload as sibling parts so a screenshot
+				// or generated image actually reaches the model instead of a byte-count stub.
+				const { text, attachments } = splitToolResult(item.content);
 				resultParts.push({
 					functionResponse: {
 						name: callNames.get(item.callId) ?? item.callId,
-						response: { output: flattenToolResult(item.content) },
+						response: { output: text },
 						...(sendToolCallIds && item.callId ? { id: item.callId } : {}),
 					},
 				});
+				for (const attachment of attachments) {
+					resultParts.push({
+						inlineData: {
+							mimeType: attachment.mimeType,
+							data: Buffer.from(attachment.data).toString('base64'),
+						},
+					});
+				}
 			} else if (item instanceof vscode.LanguageModelDataPart) {
 				// This is response metadata for VS Code's context widget, not model input.
 				// Replaying it as inlineData would send an internal JSON blob to Gemini.
@@ -167,8 +180,21 @@ function append(contents: GeminiContent[], role: 'user' | 'model', parts: Gemini
 	contents.push({ role, parts });
 }
 
-function flattenToolResult(content: ReadonlyArray<unknown>): string {
+/**
+ * Separates a tool result into text for `functionResponse.response.output` and binary
+ * attachments that must travel as `inlineData` parts.
+ *
+ * Text-like data is folded into the output string, matching how the gateway expects a
+ * Struct. Anything else (images, audio, PDFs) is returned separately: embedding it as a
+ * placeholder text would silently drop the payload, which breaks screenshot and
+ * image-generation tool loops where the model needs to see what it just produced.
+ */
+function splitToolResult(content: ReadonlyArray<unknown>): {
+	text: string;
+	attachments: Array<{ mimeType: string; data: Uint8Array }>;
+} {
 	const chunks: string[] = [];
+	const attachments: Array<{ mimeType: string; data: Uint8Array }> = [];
 	for (const item of content) {
 		if (item instanceof vscode.LanguageModelTextPart) {
 			chunks.push(item.value);
@@ -179,13 +205,14 @@ function flattenToolResult(content: ReadonlyArray<unknown>): string {
 			if (item.mimeType.startsWith('text/') || item.mimeType.includes('json')) {
 				chunks.push(Buffer.from(item.data).toString('utf8'));
 			} else {
-				chunks.push(`[${item.mimeType}, ${item.data.length} bytes]`);
+				attachments.push({ mimeType: item.mimeType, data: item.data });
 			}
 		} else if (typeof item === 'string') {
 			chunks.push(item);
 		}
 	}
-	return chunks.join('\n') || '(no output)';
+	// A tool that produced only an image still needs a non-empty output string.
+	return { text: chunks.join('\n') || (attachments.length > 0 ? '(image attached)' : '(no output)'), attachments };
 }
 
 function buildTools(
