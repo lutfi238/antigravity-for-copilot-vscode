@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add **Refresh models and quota now** and **Manage accounts** links to the status bar tooltip, so a forced refresh does not require knowing the command palette entry. The underlying `antigravity.refresh` command already bypassed the one-minute cache; this only makes it reachable from the bar. Tooltip markdown is now trusted so the `command:` links respond.
+
 - Refresh the quota status bar when the VS Code window regains focus, once the last fetch is more than a minute old. Nothing polls, so a bar left in the background previously kept showing whatever it last fetched until a manual refresh. The handler is a no-op while signed out or when the snapshot is still fresh, since a refresh invalidates the discovery, quota, and plan caches.
 - Label the status bar tooltip's timestamp **Model list updated** instead of **Quota updated**. The value is the model-discovery time, so the old label misreported when quota was last read; Gemini limits keep their own **Limits updated** line.
 

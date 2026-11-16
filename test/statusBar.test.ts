@@ -13,7 +13,7 @@ const item = vi.hoisted(() => ({
 vi.mock('vscode', async (importOriginal) => ({
 	...await importOriginal<typeof import('vscode')>(),
 	StatusBarAlignment: { Right: 2 },
-	MarkdownString: class { constructor(public value: string) {} },
+	MarkdownString: class { constructor(public value: string) {} isTrusted = false },
 	window: { createStatusBarItem: () => item },
 }));
 vi.mock('../src/config', () => ({ config: { showStatusBar: () => true } }));
@@ -202,6 +202,20 @@ describe('QuotaStatusBar', () => {
 		expect(tooltip).not.toContain('Quota updated:');
 		// The quota freshness line stays tied to the quota response.
 		expect(tooltip).toContain(`Limits updated: ${new Date(quotaTime).toLocaleTimeString()}`);
+	});
+
+	it('offers a trusted command link that forces a refresh without waiting for the TTL', () => {
+		bar.update({ models: [], quota: {}, isFallback: false }, 'test@example.com');
+		const tooltip = item.tooltip as any;
+		expect(tooltip.value).toContain('(command:antigravity.refresh)');
+		expect(tooltip.value).toContain('(command:antigravity.manage)');
+		// Without isTrusted, VS Code renders the markdown but ignores command links.
+		expect(tooltip.isTrusted).toBe(true);
+	});
+
+	it('keeps the tooltip link on the fallback and signed-out paths too', () => {
+		bar.update({ models: [], quota: {}, isFallback: true }, 'test@example.com');
+		expect((item.tooltip as any).value).toContain('(command:antigravity.refresh)');
 	});
 
 	it('does not leak a previous account plan after switching, refresh or sign-out', () => {		const catalog = { models: [], quota: {}, isFallback: false };

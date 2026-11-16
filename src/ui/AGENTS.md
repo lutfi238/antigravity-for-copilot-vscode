@@ -19,6 +19,7 @@
 - Keep the bar compact; separate account/plan and each quota/reset group in the tooltip. Show only backend-reported plans, distinguish loading from missing metadata, count models actually offered in the picker, and ignore late plan updates for another account.
 - Label the tooltip's catalogue timestamp as the model list, not as quota. That value is the model-discovery time; Gemini limits carry their own `Limits updated` line from `geminiQuota.updatedAt`. Never present one source's freshness as another's.
 - Nothing polls. Freshness comes from activation, account changes, model-affecting setting changes, the explicit refresh command, and the provider's window-focus handler. That handler must stay a no-op while signed out and while the snapshot is younger than the catalogue TTL, because a refresh invalidates the discovery, quota, and plan caches and would otherwise refetch on every alt-tab.
+- The tooltip carries `command:` links to `antigravity.refresh` and `antigravity.manage`. Keep `isTrusted = true` on the `MarkdownString`, or VS Code renders the markdown but silently ignores the links. The explicit refresh command must keep bypassing the TTL: it clears the catalogue and invalidates the quota/plan caches rather than relying on expiry.
 - Respect `antigravity.showStatusBar` and dispose all UI resources through the extension context.
 - User-facing errors should be actionable and must not reveal credentials, tokens, prompts, or tool data.
 

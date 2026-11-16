@@ -97,10 +97,14 @@ export class QuotaStatusBar {
 			`**AI credits**  \nBalance: **${credits ?? (details.plan === undefined ? 'Loading…' : 'Not reported')}**  \nGoogle One account balance, separate from model quota.`,
 			'---',
 			`Models in picker: **${details.modelCount ?? catalog.models.length}**${catalog.isFallback ? ' (fallback)' : ''}  \nModel list updated: ${new Date(details.updatedAt!).toLocaleTimeString()} · local time`,
-			'_Gemini limits cached up to 1 minute; plan and credits up to 5 minutes. Refreshes when the window regains focus; click to manage accounts and refresh._',
+			`[Refresh models and quota now](command:antigravity.refresh) · [Manage accounts](command:antigravity.manage)`,
+			'_Gemini limits cached up to 1 minute; plan and credits up to 5 minutes. Refreshes when the window regains focus; use the links above to force a refresh without waiting._',
 		);
 		// Blank paragraphs and explicit hard breaks keep quota groups from running together.
-		this.item.tooltip = new vscode.MarkdownString(blocks.join('\n\n'));
+		const tooltip = new vscode.MarkdownString(blocks.join('\n\n'));
+		// Required for the `command:` links above to render and respond.
+		tooltip.isTrusted = true;
+		this.item.tooltip = tooltip;
 		this.item.accessibilityInformation = {
 			label: `Antigravity. Plan: ${plan ?? (details.plan === undefined ? 'loading' : 'not reported')}. ${hasWindows ? `Gemini five-hour: ${format(windows?.fiveHour) ?? 'not reported'}. Gemini weekly: ${format(windows?.weekly) ?? 'not reported'}.` : `Gemini: ${gemini ?? 'not reported'}.`}${catalog.quota.argon ? ` Argon: ${argon ?? 'not reported'}.` : ''} Claude and GPT-OSS: ${claude ?? 'not reported'}. AI credits: ${credits ?? (details.plan === undefined ? 'loading' : 'not reported')}.`,
 		};

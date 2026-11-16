@@ -720,6 +720,57 @@ describe('provider effort, cancellation and latency diagnostics', () => {
 	});
 });
 
+describe('explicit refresh', () => {
+	function harness() {
+		const account = { email: 'force@example.invalid', refreshToken: 'synthetic' };
+		const store = { active: vi.fn().mockResolvedValue(account), onDidChange: () => ({ dispose() {} }) };
+		const client = { postJson: vi.fn().mockResolvedValue({ models: { 'gemini-3.8-flash-high': {} } }) };
+		const statusBar = { update: vi.fn(), setSignedOut: vi.fn(), setLoading: vi.fn() };
+		const summaries = { peek: vi.fn(), get: vi.fn().mockResolvedValue({}), invalidate: vi.fn() };
+		const plans = { peek: vi.fn(), get: vi.fn().mockResolvedValue({}), invalidate: vi.fn() };
+		const provider = new AntigravityProvider(
+			{ subscriptions: [] } as any, store as any, {} as any, client as any,
+			{ resolve: async () => 'project' } as any, statusBar as any, undefined, plans as any, summaries as any,
+		);
+		return { provider, client, statusBar, summaries, plans,
+			discover: () => provider.provideLanguageModelChatInformation({ silent: true }, {} as any) };
+	}
+
+	it('refetches discovery immediately, without waiting out the catalogue TTL', async () => {
+		const h = harness();
+		await h.discover();
+		await h.discover(); // served from the TTL cache
+		expect(h.client.postJson).toHaveBeenCalledTimes(1);
+		h.provider.refresh();
+		await h.discover();
+		expect(h.client.postJson).toHaveBeenCalledTimes(2);
+	});
+
+	it('invalidates the quota and plan caches so a forced refresh is not served stale data', async () => {
+		const h = harness();
+		await h.discover();
+		h.provider.refresh();
+		expect(h.summaries.invalidate).toHaveBeenCalled();
+		expect(h.plans.invalidate).toHaveBeenCalled();
+	});
+
+	it('shows the loading state so the forced refresh is visible', async () => {
+		const h = harness();
+		h.provider.refresh();
+		expect(h.statusBar.setLoading).toHaveBeenCalled();
+	});
+
+	it('re-arms the focus handler after a forced refresh', async () => {
+		// refresh() clears `showing`, so the next render must set it again or focus
+		// refresh would stay dead for the rest of the session.
+		const h = harness();
+		await h.discover();
+		h.provider.refresh();
+		await h.discover();
+		expect(h.statusBar.update).toHaveBeenCalledTimes(2);
+	});
+});
+
 describe('window-focus refresh', () => {
 	let fire: (state: { focused: boolean }) => void;
 
