@@ -28,16 +28,32 @@ export function applyThinking(
 	includeThoughts: boolean,
 ): GeminiGenerationConfig {
 	if (model.thinkingStyle === 'model-id-tier') {
-		// Request thoughts according to showThinking (on by default in the provider).
-		// Hiding them omits this config but does not disable the model's reasoning.
+		// The tier normally comes from the resolved model id. A discovered route that
+		// publishes no tier — `gemini-4-hydrogen-sonar` is the live example — would
+		// otherwise send no `thinkingLevel` at all, silently discarding the effort the
+		// user chose in the picker. Fall back to the requested effort so the choice
+		// reaches the wire instead of only appearing in the log.
+		//
+		// `fixedEffort` entries must not take that fallback: Orchestrator runs a fixed
+		// configuration and its id publishes no tier either, so without this guard it
+		// would silently receive the global default level — the exact wire change the
+		// picker withholds a control for.
+		const level = model.thinkingTier ?? (model.fixedEffort || effort === 'off' ? undefined : effort);
+
+		// Visibility and control are separate concerns. A tier in the id survives on its
+		// own — the id is the route — so hiding thoughts keeps the previous wire shape for
+		// those models. A level the picker chose has no id to ride on, and dropping it here
+		// would make `showThinking=false` silently disable the Sonar effort that the picker
+		// still offers. Only the thoughts are withheld, never the choice.
 		if (!includeThoughts) {
-			return config;
+			const picked = model.thinkingTier ? undefined : level;
+			return picked ? { ...config, thinkingConfig: { thinkingLevel: picked } } : config;
 		}
 		return {
 			...config,
 			thinkingConfig: {
 				includeThoughts: true,
-				...(model.thinkingTier ? { thinkingLevel: model.thinkingTier } : {}),
+				...(level ? { thinkingLevel: level } : {}),
 			},
 		};
 	}

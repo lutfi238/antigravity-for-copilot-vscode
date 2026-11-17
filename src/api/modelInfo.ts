@@ -45,6 +45,17 @@ const EFFORT_ORDER: Effort[] = ['low', 'medium', 'high', 'xhigh'];
  * ladder the gateway's budget mapping covers. `xhigh` has no budget of its own.
  */
 const NUMERIC_BUDGET_EFFORTS: Effort[] = ['low', 'medium', 'high'];
+/**
+ * Levels a tierless route is offered without per-model evidence.
+ *
+ * `xhigh` is deliberately absent. The gateway rejects it for such a route — a live
+ * request for `gemini-4-hydrogen-sonar` at `xhigh` returned
+ * `400 INVALID_ARGUMENT: Thinking level is unsupported: THINKING_LEVEL_XHIGH`, five times
+ * out of five. Offering it would let the picker produce a request that cannot succeed.
+ * `xhigh` stays available where the backend published it as its own model id, because
+ * there the id is the route and discovery already proved it exists.
+ */
+const UNTIERED_ROUTE_EFFORTS: Effort[] = ['low', 'medium', 'high'];
 
 const EFFORT_LABEL: Record<Effort, string> = {
 	low: 'Low',
@@ -66,6 +77,12 @@ const EFFORT_DESCRIPTION: Record<Effort, string> = {
  * A collapsed Gemini entry can only offer the tiers the backend published as sibling
  * model ids — inventing a "medium" the gateway does not route would 404. Claude takes an
  * arbitrary numeric budget, so every budgeted tier is genuine.
+ *
+ * A discovered Gemini route whose id publishes no tier (`gemini-4-hydrogen-sonar` is the
+ * live example) still accepts a `thinkingLevel` on the wire, because the request carries
+ * one when the id has none. Only the levels that route actually served are offered —
+ * `low`, `medium`, and `high`; the gateway rejects `xhigh` there. Orchestrator is
+ * excluded: it runs a fixed configuration and ignores effort.
  */
 export function availableEfforts(model: ModelSpec): Effort[] {
 	if (model.tierVariants) {
@@ -73,6 +90,9 @@ export function availableEfforts(model: ModelSpec): Effort[] {
 	}
 	if (model.thinkingStyle === 'numeric-budget') {
 		return [...NUMERIC_BUDGET_EFFORTS];
+	}
+	if (model.thinkingStyle === 'model-id-tier' && !model.thinkingTier && !model.fixedEffort) {
+		return [...UNTIERED_ROUTE_EFFORTS];
 	}
 	return [];
 }

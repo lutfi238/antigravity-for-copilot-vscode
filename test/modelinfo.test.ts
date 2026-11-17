@@ -36,6 +36,34 @@ describe('availableEfforts', () => {
 		expect(availableEfforts(spec('gemini-pro-orchestrator-g1-pro', 'Orchestrator (Argon)'))).toEqual([]);
 	});
 
+	it('offers only the levels a tierless route actually served', () => {
+		// `gemini-4-hydrogen-sonar` is what discovery actually returns on this plan. Its id
+		// carries no tier, but the request does send `thinkingLevel`. A live run proved
+		// low/medium/high work and that the gateway answers `xhigh` with
+		// `400 INVALID_ARGUMENT: Thinking level is unsupported: THINKING_LEVEL_XHIGH`,
+		// so `xhigh` must not be offered here — the picker would produce a failing request.
+		expect(availableEfforts(spec('gemini-4-hydrogen-sonar', 'Gemini 4 Hydrogen Sonar'))).toEqual([
+			'low', 'medium', 'high',
+		]);
+	});
+
+	it('still offers xhigh where discovery published it as its own model id', () => {
+		// There the id is the route, so discovery already proved the level is routable.
+		const hydrogen = collapseTiers([
+			spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen (High)'),
+			spec('gemini-4-hydrogen-xhigh', 'Gemini 4 Hydrogen (XHigh)'),
+		])[0];
+		expect(availableEfforts(hydrogen)).toContain('xhigh');
+	});
+
+	it('keeps Orchestrator without a control, since its configuration is fixed', () => {
+		// Google documents Orchestrator as running a fixed configuration that ignores
+		// effort, so a control there would promise something it cannot honor.
+		const orchestrator = spec('gemini-pro-orchestrator-g1-pro', 'Orchestrator (Argon)');
+		expect(orchestrator.fixedEffort).toBe(true);
+		expect(availableEfforts(orchestrator)).toEqual([]);
+	});
+
 	it('offers xhigh when a collapsed model publishes an XHigh variant', () => {
 		const hydrogen = collapseTiers([
 			spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen (High)'),

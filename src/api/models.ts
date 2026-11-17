@@ -35,6 +35,12 @@ export interface ModelSpec {
 	 * request can pick one without the picker carrying a row per tier.
 	 */
 	tierVariants?: Partial<Record<ThinkingTier, string>>;
+	/**
+	 * True when the backend runs this entry with a fixed configuration and ignores effort.
+	 * Orchestrator is the documented case: it pairs a planner with Hydrogen and exposes no
+	 * thinking level, so offering a control would promise something it cannot honor.
+	 */
+	fixedEffort?: boolean;
 }
 
 /**
@@ -146,7 +152,82 @@ export async function fetchCatalog(client: GatewayClient, op: string, project: s
 		models: models.length,
 		buckets: Object.keys(quota).join(',') || 'none',
 	});
+	logRoster(op, entries);
+	logTierless(op, models);
 	return { models, quota, isFallback: false };
+}
+
+/**
+ * Names the Gemini entries that publish no effort tier.
+ *
+ * These are the only rows that can reach the picker without a Thinking Effort control,
+ * so they are the ones worth naming. Split across lines for the same reason as the
+ * roster: `log` renders any string over 200 characters as `<N chars>`, which would turn
+ * this list into a character count and defeat the diagnostic.
+ */
+function logTierless(op: string, models: ModelSpec[]): void {
+	const ids = tierlessLineIds(models);
+	if (ids.length === 0) {
+		log.info(op, 'discovery tierless', { ids: 'none' });
+		return;
+	}
+	let current = '';
+	let part = 1;
+	const flush = () => {
+		if (current) {
+			log.info(op, 'discovery tierless', { part, ids: current });
+			part++;
+			current = '';
+		}
+	};
+	for (const id of ids) {
+		const next = current ? `${current},${id}` : id;
+		if (next.length > 180 && current) {
+			flush();
+			current = id;
+		} else {
+			current = next;
+		}
+	}
+	flush();
+}
+
+/**
+ * Records the raw gateway roster, split across lines.
+ *
+ * Curation drops entries for reasons that are not reconstructable afterwards, so a
+ * picker row missing its Thinking Effort control is otherwise indistinguishable from a
+ * model that never had tiers. The split is not cosmetic: `log` renders any string over
+ * 200 characters as `<N chars>`, which would erase a twenty-model join entirely.
+ *
+ * `(unnamed)` means the gateway reported no usable `displayName` for that entry, so the
+ * picker fell back to `prettify(id)`. It does NOT mean the name was absent on the wire:
+ * a `displayName` that happens to equal `prettify(id)` produces the same picker text, and
+ * nothing in the discovery response distinguishes the two. The marker states exactly what
+ * this code observed. `(disabled)` marks a plan placeholder the backend will not route.
+ * Ids and markers only — never prompts or account identifiers.
+ */
+function logRoster(op: string, entries: Array<[string, FetchAvailableModelEntry]>): void {
+	const LIMIT = 180;
+	const chunks: string[] = [];
+	let current = '';
+	for (const [id, entry] of entries) {
+		const marker = entry.disabled === true ? '(disabled)' : !entry.displayName ? '(unnamed)' : '';
+		const token = `${id}${marker}`;
+		const next = current ? `${current},${token}` : token;
+		if (next.length > LIMIT && current) {
+			chunks.push(current);
+			current = token;
+		} else {
+			current = next;
+		}
+	}
+	if (current) {
+		chunks.push(current);
+	}
+	chunks.forEach((ids, index) => {
+		log.info(op, 'discovery roster', { part: `${index + 1}/${chunks.length}`, ids });
+	});
 }
 
 /**
@@ -155,8 +236,22 @@ export async function fetchCatalog(client: GatewayClient, op: string, project: s
  * for models already listed under real names, `*tiered*` and `*-worker-*` are
  * server-side routing/subagent aliases, `*-disabled` entries are plan placeholders
  * the backend will not route, and image models cannot answer a chat turn.
+ *
+ * Deliberately NOT listed: `gemini-4-hydrogen-sonar`. This account generated with it on
+ * 2026-11-17 (see the `chat request` lines), so it routes — discarding it would remove a
+ * working model. Its id publishes no effort tier, which is why it reaches the picker
+ * without a Thinking Effort control. Whether the gateway also returns tiered Hydrogen
+ * siblings is what `discovery roster` exists to establish; do not assume either way.
  */
 const NON_CHAT = /^tab[_-]|^chat[_-]?\d+$|tiered|image|(?:^|[_-])(?:worker|disabled)(?:[_-]|$)/i;
+
+/** Gemini entries in a tiered product line that publish no effort tier. */
+function tierlessLineIds(models: ModelSpec[]): string[] {
+	return models
+		.filter((model) => model.family === 'gemini' && !model.thinkingTier)
+		.filter((model) => parseGeminiLine(model.id, model.name) !== null)
+		.map((model) => model.id);
+}
 
 /** Compatibility filter for older catalogues; not a promise about today's native list. */
 const MIN_GEMINI_GENERATION = 3;
@@ -450,6 +545,8 @@ export function spec(id: string, name: string): ModelSpec {
 	// Every current Gemini model selects its thinking level from the tier baked into
 	// the id; only Claude takes an explicit numeric budget.
 	const isGeminiReasoning = family === 'gemini' && !lower.includes('image');
+	// Orchestrator runs a fixed configuration, so it publishes no effort to choose.
+	const fixedEffort = family === 'gemini' && combined.includes('orchestrator');
 
 	return {
 		id,
@@ -464,6 +561,7 @@ export function spec(id: string, name: string): ModelSpec {
 				? 'numeric-budget'
 				: 'none',
 		thinkingTier: tierOf(id),
+		...(fixedEffort ? { fixedEffort: true } : {}),
 	};
 }
 

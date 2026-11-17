@@ -13,6 +13,7 @@ import { registerAntigravityWebSearchTool } from './webSearch';
 import { ImageArtifactStore } from './imageArtifacts';
 import { AccountPlanService } from './api/accountPlan';
 import { GeminiQuotaService } from './api/geminiQuota';
+import { registerDevProbe } from './devProbe';
 
 export function activate(context: vscode.ExtensionContext): void {
 	initLogging(context);
@@ -47,6 +48,19 @@ export function activate(context: vscode.ExtensionContext): void {
 		registerAntigravityWebSearchTool(),
 		onModelAffectingChange(() => provider.refresh()),
 	);
+
+	// Contract probing is a development tool: it spends real quota against an
+	// undocumented endpoint, so a packaged build must not expose it. Two gates: the
+	// bundler drops the import entirely under `--production` (`__DEV_PROBE__` is false,
+	// so this block is dead code), and `ExtensionMode` keeps it out of any installed copy.
+	if (__DEV_PROBE__ && context.extensionMode === vscode.ExtensionMode.Development) {
+		registerDevProbe(context, client, projects);
+		// The command is contributed in package.json but hidden from the palette unless
+		// this key is set, which only a development build does. Without the contribution
+		// VS Code would not list it at all; without the key a packaged build would.
+		void vscode.commands.executeCommand('setContext', 'antigravity.devProbe', true);
+		log.info('activate', 'dev probe registered', { command: 'antigravity.dev.probeEfforts' });
+	}
 
 	void store.active().then((account) => {
 		if (!account) {

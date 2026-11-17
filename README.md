@@ -114,11 +114,26 @@ control does not offer Medium. Asking a model for a tier it does not publish res
 to the closest tier it does, so an unavailable choice never produces an unroutable
 model id.
 
+A discovered route whose id encodes no tier — `gemini-4-hydrogen-sonar` is the current
+example — gets its own row offering Low, Medium, and High. `xhigh` is deliberately not
+offered there: the gateway answers it with `400 INVALID_ARGUMENT: Thinking level is
+unsupported: THINKING_LEVEL_XHIGH`. A saved XHigh selection or an `xhigh` default is
+clamped to High for such a route rather than sent, so an old setting cannot produce a
+failing request.
+
 `antigravity.reasoningEffort` accepts `off`, `low`, `medium`, `high`, and `xhigh`; it
 sets the starting value, and whatever is chosen in the picker wins for that request.
 A model that cannot serve the configured value starts on `high` rather than silently
 upgrading to the most expensive tier it publishes. Set `antigravity.effortSelection` to
 `tiers` to go back to one picker row per tier.
+
+A discovered route whose id encodes no effort tier stays its own picker row with no
+Thinking Effort control, because there is no sibling to switch to. `gemini-4-hydrogen-sonar`
+is the current example: it appeared in discovery for Google AI Pro accounts on
+2026-11-17 and answers requests, but publishes no tier. The `discovery roster` log lines
+list the raw gateway ids so the available siblings can be confirmed rather than guessed;
+an id the gateway returns without a `displayName` is marked `(unnamed)`, since the picker
+otherwise shows a generated name for it.
 
 ## Requirements
 
@@ -135,6 +150,54 @@ keep the extension installed locally rather than installing a second copy on the
 - `Antigravity: Show Auth Status`
 - `Antigravity: Refresh Models and Quota` — forces discovery, quota, and plan refetch, bypassing the one-minute cache. Also available as a link in the status bar tooltip.
 - `Antigravity: Open Logs`
+
+## Debugging without packaging
+
+Press `F5` to launch the Extension Development Host from this repository; `npm: watch`
+rebuilds on save. The development build additionally contributes
+**Antigravity (Dev): Probe Effort Support** (`antigravity.dev.probeEfforts`), which
+answers a question discovery cannot: which effort tiers a model id actually accepts.
+
+It offers two modes:
+
+- **Effort levels on one id** — holds the id fixed and sends a no-level baseline, then
+  `low`, `medium`, `high`, `xhigh`, then `bogus-level` as a negative control.
+- **Route ids for one base** — sends the base id plus `-low`/`-medium`/`-high`/`-xhigh`
+  suffixes with no thinking level, to establish which tier ids exist at all.
+
+Each case is logged as `dev probe` / `dev probe result` with `model`, `level`, `status`,
+and `detail`, and the summary is copied to the clipboard. Results distinguish route
+acceptance from effort acceptance, and a stream that ends with no candidate, text, or
+usage is reported `inconclusive` rather than `accepted`.
+
+Read the output carefully, because this run is **request-acceptance evidence only**, not a
+capability result. Each limitation is real:
+
+- A served request proves the gateway accepted the body. It does not prove an unknown
+  `thinkingLevel` was honored; it may be silently ignored.
+- Refusing the `bogus-level` control does **not** prove valid levels are honored. A
+  generic enum check also refuses invalid values.
+- Identical `thoughts=` counts are inconclusive, not proof: a one-word answer under a
+  32-token cap can saturate with minimal reasoning at every level.
+- A `400` needs its reason read before any conclusion. It can be a level rejection, a
+  `thinkingConfig` shape error, or an output/thinking limit — not automatically "no
+  effort".
+
+`includeThoughts` is sent on every case including the baseline, so `thinkingLevel` is the
+only field that varies; a baseline that also dropped `thinkingConfig` would change two
+fields at once. Do not change the picker from a single probe run — stronger evidence needs
+a wire capture or repeated samples against a task that forces sustained reasoning.
+
+The probe is bounded and discloses its traffic before sending anything: a modal
+confirmation lists every request (up to 12 per run, each capped at 32 output tokens) and
+says how many cases a longer list lost. Each case has a 45-second deadline, and Cancel
+aborts project resolution as well as the generation request, so a hung endpoint cannot
+hold the run open. It never ships: `--production` defines `__DEV_PROBE__` as false, which
+removes the module from the packaged bundle entirely, and `ExtensionMode` gates it again
+at runtime. Its palette entry is hidden by the `antigravity.devProbe` context key, which
+only a development build sets.
+
+Package a VSIX only once a fix is confirmed: `npm run package:vsix`.
 
 ## Diagnostics and privacy
 

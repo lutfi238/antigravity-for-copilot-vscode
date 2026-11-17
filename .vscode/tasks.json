@@ -2,12 +2,25 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "esbuild watch",
 			"type": "npm",
 			"script": "watch",
-			"problemMatcher": "$esbuild-watch",
 			"isBackground": true,
 			"presentation": { "reveal": "never" },
-			"group": { "kind": "build", "isDefault": true }
+			"group": { "kind": "build", "isDefault": true },
+			"problemMatcher": {
+				"owner": "esbuild",
+				"fileLocation": ["relative", "${workspaceFolder}"],
+				"pattern": {
+					"regexp": "^✘ \\[ERROR\\] (.+)$",
+					"message": 1
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^\\[watch\\] (?:finished|watching)",
+					"endsPattern": "^\\[watch\\] finished"
+				}
+			}
 		}
 	]
 }

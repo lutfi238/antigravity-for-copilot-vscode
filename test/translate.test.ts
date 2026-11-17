@@ -483,10 +483,12 @@ describe('buildRequest — thinking budget', () => {
 	}
 
 	it('sends Gemini a thinkingLevel only when thoughts are requested', () => {
-		// Default path stays on the exact request shape known to work.
-		expect(withEffort(GEMINI, 'high', false).generationConfig?.thinkingConfig).toBeUndefined();
+		// The tier lives in the id, so hiding thoughts keeps the exact request shape known
+		// to work. (A tierless route forwards the picker's choice instead — see below.)
+		const tiered = { ...GEMINI, thinkingTier: 'high' as const };
+		expect(withEffort(tiered, 'high', false).generationConfig?.thinkingConfig).toBeUndefined();
 
-		const opted = withEffort({ ...GEMINI, thinkingTier: 'high' }, 'high', true).generationConfig!;
+		const opted = withEffort(tiered, 'high', true).generationConfig!;
 		expect(opted.thinkingConfig).toEqual({ includeThoughts: true, thinkingLevel: 'high' });
 		// Never a numeric budget for Gemini — it takes a level string.
 		expect(opted.thinkingConfig!.thinkingBudget).toBeUndefined();
@@ -508,7 +510,8 @@ describe('buildRequest — thinking budget', () => {
 	it('sends no thinkingConfig to Gemini 3 — the tier lives in the model id', () => {
 		// Gemini 3 takes a `thinkingLevel` string, not a budget, and picks it from the
 		// `-high` / `-low` suffix. A numeric budget here is wrong at best.
-		expect(withEffort(GEMINI, 'high').generationConfig?.thinkingConfig).toBeUndefined();
+		expect(withEffort({ ...GEMINI, thinkingTier: 'high' }, 'high').generationConfig?.thinkingConfig)
+			.toBeUndefined();
 	});
 
 	it('adds no thinkingConfig when reasoning is off', () => {
@@ -518,6 +521,67 @@ describe('buildRequest — thinking budget', () => {
 	it('skips thinking for models that do not support it', () => {
 		const gpt: ModelSpec = { ...CLAUDE, id: 'gpt-oss-120b-medium', family: 'gpt-oss', thinkingStyle: 'none' };
 		expect(withEffort(gpt, 'high').generationConfig?.thinkingConfig).toBeUndefined();
+	});
+
+	it('forwards the picker effort for a discovered route whose id carries no tier', () => {
+		// `gemini-4-hydrogen-sonar` is a live example: discovery returns it with no tier
+		// suffix, so `thinkingTier` is undefined. Reading the level only from the id sent
+		// no `thinkingLevel` at all, silently dropping the user's choice — the log said
+		// `effort=medium` while the wire carried nothing.
+		const sonar: ModelSpec = {
+			...GEMINI, id: 'gemini-4-hydrogen-sonar', name: 'Gemini 4 Hydrogen Sonar', thinkingTier: undefined,
+		};
+		const config = withEffort(sonar, 'medium', true).generationConfig!;
+		expect(config.thinkingConfig).toEqual({ includeThoughts: true, thinkingLevel: 'medium' });
+	});
+
+	it('still prefers the id tier when the id does publish one', () => {
+		// A tiered id must not be overridden by the picker: the id is the route, and the
+		// gateway addresses each tier as its own model.
+		const config = withEffort({ ...GEMINI, thinkingTier: 'low' }, 'xhigh', true).generationConfig!;
+		expect(config.thinkingConfig).toEqual({ includeThoughts: true, thinkingLevel: 'low' });
+	});
+
+	it('sends no level for an untiered route when effort is off', () => {
+		const sonar: ModelSpec = { ...GEMINI, id: 'gemini-4-hydrogen-sonar', thinkingTier: undefined };
+		expect(withEffort(sonar, 'off', true).generationConfig?.thinkingConfig).toEqual({ includeThoughts: true });
+	});
+
+	it('never forwards an effort to a fixed-configuration model', () => {
+		// Orchestrator publishes no tier and runs a fixed configuration. Without the guard
+		// it took the untiered fallback and silently received the global default level —
+		// the exact wire change the picker withholds a control for.
+		const orchestrator: ModelSpec = {
+			...GEMINI, id: 'gemini-pro-orchestrator-g1-pro', name: 'Orchestrator (Argon)',
+			thinkingTier: undefined, fixedEffort: true,
+		};
+		const config = withEffort(orchestrator, 'high', true).generationConfig!;
+		expect(config.thinkingConfig).toEqual({ includeThoughts: true });
+		expect(config.thinkingConfig!.thinkingLevel).toBeUndefined();
+	});
+
+	it('keeps the picker effort for a tierless route when reasoning is hidden', () => {
+		// Visibility and control are separate. `showThinking=false` must not silently
+		// disable the effort the picker still offers on a route with no tier in its id.
+		const sonar: ModelSpec = { ...GEMINI, id: 'gemini-4-hydrogen-sonar', thinkingTier: undefined };
+		const config = withEffort(sonar, 'xhigh', false).generationConfig!;
+		expect(config.thinkingConfig).toEqual({ thinkingLevel: 'xhigh' });
+		// The thoughts themselves stay hidden.
+		expect(config.thinkingConfig!.includeThoughts).toBeUndefined();
+	});
+
+	it('keeps a tiered id on its previous wire shape when reasoning is hidden', () => {
+		// The tier rides on the id, so hiding thoughts must not add a field the request
+		// did not previously carry.
+		expect(withEffort({ ...GEMINI, thinkingTier: 'high' }, 'high', false).generationConfig?.thinkingConfig)
+			.toBeUndefined();
+	});
+
+	it('keeps fixedEffort silent even with reasoning hidden', () => {
+		const orchestrator: ModelSpec = {
+			...GEMINI, id: 'gemini-pro-orchestrator-g1-pro', thinkingTier: undefined, fixedEffort: true,
+		};
+		expect(withEffort(orchestrator, 'high', false).generationConfig?.thinkingConfig).toBeUndefined();
 	});
 });
 

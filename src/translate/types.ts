@@ -80,7 +80,11 @@ export interface GenerateContentResponse {
 		candidates?: GeminiCandidate[];
 		usageMetadata?: GeminiUsage;
 		responseId?: string;
+		/** A rejection can arrive as a stream event rather than an HTTP status. */
+		error?: unknown;
 	};
 	candidates?: GeminiCandidate[];
 	usageMetadata?: GeminiUsage;
+	/** Present when the gateway rejects the turn after the stream has opened. */
+	error?: unknown;
 }

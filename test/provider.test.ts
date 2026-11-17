@@ -544,6 +544,61 @@ describe('provider effort, cancellation and latency diagnostics', () => {
 		expect(body.request.messages).toBeUndefined();
 	});
 
+	describe('tierless route effort clamping', () => {
+		// `gemini-4-hydrogen-sonar` is the only Hydrogen entry this plan discovers. Its id
+		// carries no tier, and the gateway rejects `xhigh` on it with
+		// `400 INVALID_ARGUMENT: Thinking level is unsupported: THINKING_LEVEL_XHIGH`.
+		// Removing XHigh from the dropdown does not remove it from saved state, so the
+		// request boundary has to clamp it.
+		function sonarHarness() {
+			const h = harness();
+			h.client.postJson.mockResolvedValue({ models: {
+				'gemini-4-hydrogen-sonar': { displayName: 'Gemini 4 Hydrogen Sonar' },
+			} });
+			return h;
+		}
+
+		it('offers only low, medium and high on the tierless route', async () => {
+			const h = sonarHarness();
+			const [info] = await h.discover();
+			expect(info.configurationSchema?.properties.reasoningEffort?.enum).toEqual(['low', 'medium', 'high']);
+		});
+
+		it('clamps a stale picker selection of xhigh to high', async () => {
+			// VS Code persists the per-model choice, so a user who picked XHigh before the
+			// level was withdrawn still sends `xhigh` on the next turn.
+			const h = sonarHarness();
+			const [info] = await h.discover();
+			await h.send(info, 'xhigh');
+			const body = h.client.post.mock.calls[0][0].body;
+			expect(body.request.generationConfig.thinkingConfig).toEqual({
+				includeThoughts: true, thinkingLevel: 'high',
+			});
+		});
+
+		it('clamps a global xhigh default to high', async () => {
+			// `antigravity.reasoningEffort` can hold `xhigh` with no picker involved at all.
+			settings.reasoningEffort = 'xhigh';
+			const h = sonarHarness();
+			const [info] = await h.discover();
+			// No per-model configuration, so the setting is the only source.
+			await h.provider.provideLanguageModelChatResponse(info,
+				[{ role: vscode.LanguageModelChatMessageRole.User, content: [new vscode.LanguageModelTextPart('x')], name: undefined }],
+				{ modelConfiguration: {} } as unknown as vscode.ProvideLanguageModelChatResponseOptions,
+				{ report: () => {} }, new TestToken());
+			const body = h.client.post.mock.calls[0][0].body;
+			expect(body.request.generationConfig.thinkingConfig.thinkingLevel).toBe('high');
+		});
+
+		it('passes a supported level through untouched', async () => {
+			const h = sonarHarness();
+			const [info] = await h.discover();
+			await h.send(info, 'low');
+			expect(h.client.post.mock.calls[0][0].body.request.generationConfig.thinkingConfig.thinkingLevel)
+				.toBe('low');
+		});
+	});
+
 	it('collapses Hydrogen XHigh into one picker entry and routes Orchestrator without duplicate rows', async () => {
 		const h = harness();
 		h.client.postJson.mockResolvedValue({ models: {

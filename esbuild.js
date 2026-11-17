@@ -51,6 +51,10 @@ async function main() {
 		sourcemap: !production,
 		sourcesContent: false,
 		logLevel: 'silent',
+		// The dev probe spends real quota against an undocumented endpoint and must not
+		// ship. `--production` (used by vscode:prepublish and package:vsix) defines the
+		// flag; extension.ts imports the module only when it is set.
+		define: { __DEV_PROBE__: production ? 'false' : 'true' },
 		plugins: [problemMatcherPlugin],
 	});
 

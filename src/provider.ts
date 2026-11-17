@@ -11,6 +11,7 @@ import {
 	spec,
 } from './api/models';
 import {
+	availableEfforts,
 	buildConfigurationSchema,
 	resolveEffort,
 	Effort,
@@ -172,6 +173,18 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 					this.specs.set(model.id, model);
 					return toChatInformation(model, defaultEffort);
 				});
+			// Report the effort control as actually handed to VS Code, per model. The cached
+			// metadata in global storage is shared across windows, so it cannot attribute a
+			// missing dropdown to this host; this line can. It is also the only way to tell
+			// "provider sent no schema" from "VS Code did not render it". Split per model
+			// because `log` renders any string over 200 characters as `<N chars>`.
+			for (const info of offered) {
+				const efforts = info.configurationSchema?.properties.reasoningEffort?.enum;
+				log.info(op, 'catalog effort schema', {
+					model: info.id,
+					efforts: efforts ? efforts.join('|') : 'none',
+				});
+			}
 			this.statusBar.update(catalog, account.email, {
 				plan: this.plans?.peek(account.email), modelCount: offered.length,
 				// The discovery response this snapshot was built from. Quota freshness is
@@ -228,7 +241,7 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 			const modelOptions = options.modelOptions as Record<string, unknown> | undefined;
 			const settingEffort = config.reasoningEffort();
 			const fallbackEffort: Effort = settingEffort === 'off' ? 'low' : settingEffort;
-			const { effort, source: effortSource } = resolveEffort(
+			const picked = resolveEffort(
 				{
 					modelOptions,
 					modelConfiguration: runtime.modelConfiguration,
@@ -236,6 +249,15 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				},
 				fallbackEffort,
 			);
+			// Removing a level from the dropdown does not remove it from the world: a picker
+			// selection persisted before the change, or `antigravity.reasoningEffort` set to
+			// `xhigh`, still arrives here. The gateway answers `xhigh` on a tierless route
+			// with 400 INVALID_ARGUMENT, so clamp to what this model actually serves instead
+			// of forwarding a level it cannot honour.
+			const { effort, source: effortSource } = {
+				effort: clampEffort(spec, picked.effort),
+				source: picked.source,
+			};
 
 			// A collapsed entry stands in for several tier-specific model ids.
 			const resolved = resolveTierSpec(spec, effort);
@@ -286,6 +308,12 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 				model: wireModel,
 				effort,
 				effortFrom: effortSource,
+				// The level actually transmitted, which is not always `effort`: a tiered id
+				// carries its own, a fixed-configuration model gets none, and an untiered
+				// route forwards the picker's choice. Without this the log said `effort=high`
+				// while the wire carried something else, and no later line could tell.
+				thinkingLevel: request.generationConfig?.thinkingConfig?.thinkingLevel ?? 'none',
+				thinkingBudget: request.generationConfig?.thinkingConfig?.thinkingBudget,
 				modelConfigKeys: Object.keys(runtime.modelConfiguration ?? {}).join(',') || 'none',
 				thoughtsRequested: showThinking,
 				toolCallIdsSetting: toolCallIds,
@@ -409,6 +437,31 @@ export class AntigravityProvider implements vscode.LanguageModelChatProvider {
 		if (revision === this.refreshRevision) this.catalog = { value, at: Date.now(), email: account.email };
 		return value;
 	}
+}
+
+/**
+ * Clamps a requested effort to what this model can actually serve.
+ *
+ * The dropdown is not the only way an effort arrives: VS Code persists the per-model
+ * selection, and `antigravity.reasoningEffort` sets a global default. Both can hold a
+ * level that this model no longer offers — `xhigh` on a tierless route is the proven
+ * case, where the gateway answers `400 INVALID_ARGUMENT: Thinking level is unsupported`.
+ *
+ * Only a tierless route needs this. A collapsed entry already resolves the requested
+ * level against the tier ids discovery published (`resolveTier`), and re-clamping it here
+ * would override that fallback with the wrong answer.
+ */
+export function clampEffort(model: ModelSpec, effort: Effort): Effort {
+	if (model.thinkingTier || model.tierVariants || model.fixedEffort) {
+		return effort;
+	}
+	const supported = availableEfforts(model);
+	if (supported.length === 0 || supported.includes(effort)) {
+		return effort;
+	}
+	// Prefer `high`: it is the tier every generation publishes, so a stale `xhigh` does not
+	// silently become the cheapest answer.
+	return supported.includes('high') ? 'high' : supported[supported.length - 1];
 }
 
 function toChatInformation(model: ModelSpec, defaultEffort: Effort): ProviderChatInformation {

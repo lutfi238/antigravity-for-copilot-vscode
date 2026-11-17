@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import * as vscode from 'vscode';
+import { initLogging } from '../src/log';
 import {
 	fetchCatalog,
 	spec,
@@ -223,6 +225,71 @@ describe('fetchCatalog', () => {
 		expect(catalog.isFallback).toBe(false);
 		expect(catalog.models).toHaveLength(1);
 		expect(catalog.quota.gemini?.remainingFraction).toBeUndefined();
+	});
+
+	it('records the full roster on a real log channel without scrubbing it away', async () => {
+		// `log` renders any string over 200 chars as `<N chars>`, so a single joined
+		// roster line would lose exactly the evidence this diagnostic exists to keep.
+		// Drive the real channel with a twenty-model roster and read what it emitted.
+		const lines: string[] = [];
+		vi.spyOn(vscode.window, 'createOutputChannel').mockReturnValue({
+			info: (line: string) => lines.push(line),
+			trace() {}, debug() {}, warn() {}, error() {}, show() {}, dispose() {},
+		} as never);
+		initLogging({ subscriptions: [] } as never);
+
+		const ids = [
+			'gemini-4-hydrogen-high', 'gemini-4-hydrogen-xhigh', 'gemini-4-hydrogen-medium',
+			'gemini-4-hydrogen-low', 'gemini-4-hydrogen-sonar', 'gemini-4-hydrogen-tiered-high',
+			'gemini-4-hydrogen-tiered-xhigh', 'gemini-4-carbon-high', 'gemini-4-carbon-medium',
+			'gemini-4-carbon-low', 'gemini-4-argon-high', 'gemini-4-argon-medium',
+			'gemini-4-argon-low', 'gemini-4-argon-disabled', 'gemini-3.8-flash-high',
+			'gemini-3.8-flash-medium', 'gemini-3.8-flash-low', 'gemini-3.8-flash-tiered',
+			'claude-sonnet-4-6', 'gpt-oss-120b-medium',
+		];
+		// Only the tier-publishing models carry a display name, matching what the real
+		// gateway did for the unnamed sonar slot this diagnostic was added for.
+		const models = Object.fromEntries(
+			ids.map((id) => [
+				id,
+				id.endsWith('-disabled')
+					? { disabled: true }
+					: !id.includes('tiered') &&
+						  (/-(low|medium|high|xhigh)$/.test(id) || id.startsWith('claude') || id.startsWith('gpt'))
+						? { displayName: id }
+						: {},
+			]),
+		);
+		await fetchCatalog(clientReturning({ models }), 'op', 'proj');
+
+		const roster = lines.filter((line) => line.includes('discovery roster'));
+		expect(roster.length).toBeGreaterThan(1);
+		const recorded = roster.map((line) => line.slice(line.indexOf('ids=') + 4)).join(',');
+		for (const id of ids) {
+			expect(recorded).toContain(id);
+		}
+		expect(recorded).not.toContain('chars>');
+		// Every part stays under the scrub threshold on its own.
+		for (const line of roster) {
+			expect(line.slice(line.indexOf('ids=') + 4).length).toBeLessThanOrEqual(200);
+		}
+		expect(recorded).toContain('gemini-4-argon-disabled(disabled)');
+		// Provenance for a row that arrives with no name of its own: the picker invents
+		// `prettify(id)` for it, so without this marker an internal slot is invisible.
+		expect(recorded).toContain('gemini-4-hydrogen-sonar(unnamed)');
+		expect(recorded).toContain('gemini-4-hydrogen-tiered-high(unnamed)');
+		expect(recorded).not.toContain('gemini-4-hydrogen-high(unnamed)');
+
+		// The tierless list is the diagnostic for "no Thinking Effort control", so it must
+		// survive the same 200-character scrub that flattened it into `<209 chars>` live.
+		const tierless = lines.filter((line) => line.includes('discovery tierless'));
+		expect(tierless.length).toBeGreaterThan(0);
+		const tierlessIds = tierless.map((line) => line.slice(line.indexOf('ids=') + 4)).join(',');
+		expect(tierlessIds).toContain('gemini-4-hydrogen-sonar');
+		expect(tierlessIds).not.toContain('chars>');
+		for (const line of tierless) {
+			expect(line.slice(line.indexOf('ids=') + 4).length).toBeLessThanOrEqual(200);
+		}
 	});
 });
 
@@ -592,6 +659,47 @@ describe('curateModels — newest discovered generation', () => {
 		expect(model.tierVariants).toEqual({ high: 'gemini-4.1-argon-high', low: 'gemini-4.1-argon-low' });
 		expect(resolveTierSpec(model, 'medium')).toMatchObject({ id: 'gemini-4.1-argon-high', thinkingTier: 'high' });
 		expect(curateModels(raw, true).some(model => model.id === 'gemini-4-argon-high')).toBe(true);
+	});
+
+	it('keeps the Hydrogen sonar route and folds the real tiers around it', () => {
+		// Observed on a Google AI Pro account 2026-11-17: discovery returned
+		// `gemini-4-hydrogen-sonar` and this account generated with it, so it is a working
+		// route, not an alias. It publishes no tier in its id, which is exactly why it
+		// reached the picker without a Thinking Effort control. Curation must keep it and
+		// must not let it swallow the tiers that do publish one.
+		const raw = [
+			spec('gemini-4-hydrogen-high', 'Gemini 4 Hydrogen'),
+			spec('gemini-4-hydrogen-xhigh', 'Gemini 4 Hydrogen'),
+			spec('gemini-4-hydrogen-medium', 'Gemini 4 Hydrogen'),
+			spec('gemini-4-hydrogen-low', 'Gemini 4 Hydrogen'),
+			spec('gemini-4-hydrogen-sonar', 'Gemini 4 Hydrogen Sonar'),
+			spec('gemini-4-hydrogen-tiered-high', 'Gemini 4 Hydrogen (High)'),
+		];
+		const curated = curateModels(raw, false);
+		expect(curated.map((model) => model.id)).toEqual([
+			'gemini-4-hydrogen-high',
+			'gemini-4-hydrogen-xhigh',
+			'gemini-4-hydrogen-medium',
+			'gemini-4-hydrogen-low',
+			'gemini-4-hydrogen-sonar',
+		]);
+
+		// The tiered server slot is still an alias; the sonar route is not.
+		expect(curated.map((model) => model.id)).not.toContain('gemini-4-hydrogen-tiered-high');
+
+		const collapsed = collapseTiers(curated);
+		const hydrogen = collapsed.find((model) => model.name === 'Gemini 4 Hydrogen')!;
+		expect(hydrogen.tierVariants).toEqual({
+			high: 'gemini-4-hydrogen-high',
+			xhigh: 'gemini-4-hydrogen-xhigh',
+			medium: 'gemini-4-hydrogen-medium',
+			low: 'gemini-4-hydrogen-low',
+		});
+		// Sonar stays its own row because it publishes no tier to fold.
+		expect(collapsed.find((model) => model.id === 'gemini-4-hydrogen-sonar')).toMatchObject({
+			name: 'Gemini 4 Hydrogen Sonar',
+			thinkingTier: undefined,
+		});
 	});
 
 	it('collapses Hydrogen tiers, keeps Orchestrator, and drops worker/disabled aliases', () => {
