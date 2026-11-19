@@ -5,14 +5,11 @@ A lightweight VS Code Language Model Provider for the Google Antigravity backend
 [![Install](https://img.shields.io/badge/VS_Code-Install-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=lutfi.antigravity-for-copilot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Use **Gemini 4 Hydrogen** (Low/Medium/High/XHigh), **Gemini 4 Argon** and
-**Gemini 4 Carbon** where your plan provides them, **Gemini 3.8 Flash**,
-**Claude Sonnet 4.6/5.5 (Thinking)**, **Claude Opus 4.6/5.5 (Thinking)**, and
-**GPT-OSS 120B (Medium)** when available to your Antigravity account, from the
+Use the **Gemini** and **Claude** models your Antigravity account provides, from the
 standard model picker in Chat and Agent mode. The picker always uses the models your
-account's own discovery returns; the list above describes the product lines the bridge
-understands, not a fixed roster. Claude version availability varies, and these
-descriptions do not add or rename model IDs.
+account's own discovery returns; the list below describes the product lines the bridge
+understands, not a fixed roster. Model availability varies, and these descriptions do
+not add or rename model IDs.
 Requests run on your Antigravity account rather than Copilot premium requests.
 
 > **Unofficial.** Not affiliated with, endorsed by, or supported by Google. This talks to

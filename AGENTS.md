@@ -12,6 +12,8 @@
 - Keep the extension unofficial disclaimer and account-risk warning in user-facing documentation.
 - Require VS Code `^1.108.0`; the extension runs as `extensionKind: ["ui"]` so loopback OAuth remains local.
 - Keep OAuth credentials out of version control. Local builds require ignored `src/api/credentials.ts`, copied from `src/api/credentials.example.ts` and filled with real values.
+- Never delete `src/api/credentials.ts` while cleaning up a task, and never run `git clean -x` in this repository. The file is git-ignored and was never committed, so nothing can restore it from history and every later build fails at the `esbuild.js` guard.
+- When the file is missing, recover the client id/secret from an already-installed build (`~/.vscode/extensions/lutfi.antigravity-for-copilot-*/dist/extension.js`) or the local Antigravity CLI, write them into the ignored file without printing them, and report only that it was restored. Never fabricate placeholders and never bypass or weaken the `esbuild.js` credential check.
 - Do not commit generated `dist/` output or packaged `.vsix` artifacts unless a release workflow explicitly requires them.
 
 ## Work Guidance
@@ -28,6 +30,7 @@
 - Type-only check: `npm run typecheck`.
 - Tests: `npm test`.
 - VSIX packaging: `npm run package:vsix`.
+- Before packaging, confirm `src/api/credentials.ts` exists and contains no `REPLACE_ME`; the build exits early otherwise. Leave that file in place after the build.
 - Runtime behavior still requires an Extension Development Host (`F5`) and a usable Antigravity account; build success alone does not verify OAuth or gateway behavior.
 
 ## Child DOX Index

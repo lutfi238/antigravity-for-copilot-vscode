@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.26
+
+- Describe the extension as a bridge for Gemini and Claude models instead of naming the current roster in the marketplace description and the README lead. A fixed list goes stale as models are added or retired (GPT-OSS is expected to be dropped), while discovery remains the authority on what the picker offers.
+
 ## 0.15.25
 
 - Forward the picker's Thinking Effort for a discovered Gemini route whose id publishes no tier. `applyThinking` read `thinkingLevel` only from `model.thinkingTier`, so a route like `gemini-4-hydrogen-sonar` — the only Hydrogen entry this plan discovers — sent `thinkingConfig` with no `thinkingLevel` at all. The log recorded `effort=medium` while the wire carried nothing. The requested effort is now used when the id has no tier, and an id that does publish one still wins, because the id is the route. `effort=off` still sends no level.
