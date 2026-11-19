@@ -30,6 +30,7 @@
 - Type-only check: `npm run typecheck`.
 - Tests: `npm test`.
 - VSIX packaging: `npm run package:vsix`.
+- Publishing: attach the packaged VSIX to a GitHub release; `.github/workflows/publish.yml` publishes that exact asset with Trusted Publishing (OIDC). No PAT and no OAuth credentials are stored in CI.
 - Before packaging, confirm `src/api/credentials.ts` exists and contains no `REPLACE_ME`; the build exits early otherwise. Leave that file in place after the build.
 - Runtime behavior still requires an Extension Development Host (`F5`) and a usable Antigravity account; build success alone does not verify OAuth or gateway behavior.
 
