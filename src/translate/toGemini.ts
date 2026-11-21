@@ -8,6 +8,9 @@ import { applyToolGuidance, TOOL_GUIDANCE_REVISION } from './toolGuidance';
 /** Hosted markers owned by another provider must not be sent to Antigravity as functions. */
 const INCOMPATIBLE_HOSTED_TOOL_NAMES = new Set(['codexForCopilot_searchWeb']);
 
+/** VS Code bookkeeping and provider continuation markers are handled outside the gateway. */
+const INTERNAL_DATA_PART_MIME_TYPES = new Set([USAGE_DATA_PART_MIME, 'stateful_marker']);
+
 export interface BuildOptions {
 	model: ModelSpec;
 	messages: readonly vscode.LanguageModelChatRequestMessage[];
@@ -152,9 +155,7 @@ function buildContents(
 					attachments++;
 				}
 			} else if (item instanceof vscode.LanguageModelDataPart) {
-				// This is response metadata for VS Code's context widget, not model input.
-				// Replaying it as inlineData would send an internal JSON blob to Gemini.
-				if (item.mimeType.toLowerCase() === USAGE_DATA_PART_MIME) {
+				if (INTERNAL_DATA_PART_MIME_TYPES.has(item.mimeType.toLowerCase())) {
 					continue;
 				}
 				parts.push({
@@ -212,7 +213,7 @@ function splitToolResult(content: ReadonlyArray<unknown>): {
 		if (item instanceof vscode.LanguageModelTextPart) {
 			chunks.push(item.value);
 		} else if (item instanceof vscode.LanguageModelDataPart) {
-			if (item.mimeType.toLowerCase() === USAGE_DATA_PART_MIME) {
+			if (INTERNAL_DATA_PART_MIME_TYPES.has(item.mimeType.toLowerCase())) {
 				continue;
 			}
 			if (item.mimeType.startsWith('text/') || item.mimeType.includes('json')) {

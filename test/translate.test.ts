@@ -353,6 +353,20 @@ describe('buildRequest — binary tool results', () => {
 		expect(parts).toHaveLength(1);
 		expect(parts[0].functionResponse?.response.output).toBe('{"ok":true}');
 	});
+
+	it('omits stateful markers from tool results while keeping image data', () => {
+		const png = new Uint8Array([137, 80, 78, 71]);
+		const { request, attachments } = withResult([
+			new vscode.LanguageModelDataPart(new Uint8Array([1]), 'STATEFUL_MARKER'),
+			new vscode.LanguageModelTextPart('captured'),
+			new vscode.LanguageModelDataPart(png, 'image/png'),
+		]);
+		expect(request.contents[2].parts).toEqual([
+			{ functionResponse: { name: 'screenshot', response: { output: 'captured' } } },
+			{ inlineData: { mimeType: 'image/png', data: 'iVBORw==' } },
+		]);
+		expect(attachments).toBe(1);
+	});
 });
 
 describe('buildRequest — attachment count', () => {
@@ -414,6 +428,21 @@ describe('buildRequest — attachment count', () => {
 	it('does not count the internal usage data part', () => {
 		const { attachments } = build([
 			userMessage(new vscode.LanguageModelTextPart('x'), new vscode.LanguageModelDataPart(new Uint8Array([1]), 'usage')),
+		]);
+		expect(attachments).toBe(0);
+	});
+
+	it('omits VS Code stateful markers from replayed chat history', () => {
+		const marker = new vscode.LanguageModelDataPart(new Uint8Array([1]), 'stateful_marker');
+		const { request, attachments } = build([
+			userMessage(new vscode.LanguageModelTextPart('first question')),
+			assistantMessage(new vscode.LanguageModelTextPart('first answer'), marker),
+			userMessage(new vscode.LanguageModelTextPart('follow-up')),
+		]);
+		expect(request.contents).toEqual([
+			{ role: 'user', parts: [{ text: 'first question' }] },
+			{ role: 'model', parts: [{ text: 'first answer' }] },
+			{ role: 'user', parts: [{ text: 'follow-up' }] },
 		]);
 		expect(attachments).toBe(0);
 	});

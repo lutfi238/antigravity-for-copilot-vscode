@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.27
+
+- Fix an HTTP 400 when Copilot Chat history contains a `stateful_marker`. Skip these continuation markers when translating messages and tool results so Antigravity receives only the conversation content and attachments. [Issue #7](https://github.com/lutfi238/antigravity-for-copilot-vscode/issues/7)
+
 ## 0.15.26
 
 - Describe the extension as a bridge for Gemini and Claude models instead of naming the current roster in the marketplace description and the README lead. A fixed list goes stale as models are added or retired (GPT-OSS is expected to be dropped), while discovery remains the authority on what the picker offers.
